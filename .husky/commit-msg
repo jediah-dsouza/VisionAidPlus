@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+const commitRegex = /^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?: .{1,50}/;
+
+const msg = require('fs').readFileSync(process.argv[2], 'utf-8').trim();
+
+if (!commitRegex.test(msg)) {
+  console.error(
+    `Invalid commit message: "${msg}".\n` +
+    `Expected format: <type>(<scope>): <description>\n` +
+    `Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert`
+  );
+  process.exit(1);
+}
