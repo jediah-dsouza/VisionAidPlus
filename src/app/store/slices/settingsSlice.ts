@@ -22,6 +22,9 @@ export const settingsSlice = createSlice({
     setSettings: (state, action: PayloadAction<Partial<Settings>>) => {
       return { ...state, ...action.payload };
     },
+    setHasCompletedOnboarding: (state, action: PayloadAction<boolean>) => {
+      state.hasCompletedOnboarding = action.payload;
+    },
     resetSettings: () => initialState,
   },
 });

@@ -3,7 +3,8 @@
 ## Project Status
 
 - **Version**: 1.0.0 (Development started)
-- **Phase**: Core infrastructure complete - Navigation (7 stacks), 8 Redux slices, 11 design system components, Accessibility Engine (Phase 4), 6 feature modules
+- **Phase**: Phase 6 - Home Dashboard System complete
+- **Completed**: Auth flows (Login, Register, ForgotPassword), Onboarding (Welcome, Permissions, DevicePairing, Complete), Home Dashboard (realtime widgets, EmergencyFAB, AIInstructionBanner), Dev Auth Bypass (testing), 12 design system components, 8 Redux slices, 7 navigation stacks
 - **Platform**: React Native 0.85.3 (CLI), Android-first
 
 ## Project Setup
@@ -73,7 +74,8 @@ src/
 │   └── store/slices/     # Redux slices (8 total)
 ├── core/                  # Core services (BLE, AI, TTS, storage, events)
 ├── features/             # Feature modules
-│   ├── auth/             # Auth flow (login, register, forgot password)
+│   ├── auth/             # Auth flow (Login, Register, ForgotPassword) + store + hooks
+│   ├── onboarding/       # Onboarding (Welcome, Permissions, DevicePairing, Complete) + store + hooks
 │   ├── home/             # Home screen
 │   ├── device/          # Device pairing/management
 │   ├── alerts/           # Alert management
@@ -81,11 +83,25 @@ src/
 │   ├── emergency/       # Emergency handling
 │   └── navigation/       # Navigation assistance
 └── shared/
-    ├── design-system/    # 11 UI components, theme tokens
+    ├── design-system/    # 12 UI components (includes FormInput), theme tokens
     ├── theme/            # Colors, typography, spacing
     ├── types/            # Global TypeScript types
     └── constants/        # App constants
 ```
+
+**Note**: Each feature module has its own Redux slice (e.g., `features/auth/store/authSlice.ts`, `features/onboarding/store/onboardingSlice.ts`) separate from app-level slices.
+
+### Feature Module Pattern
+
+Each feature module follows a consistent structure:
+
+- `screens/` - React component screens
+- `store/` - Redux slice and async thunks
+- `hooks/` - Custom hooks (useAuth, useOnboarding, usePermissions, etc.)
+- `services/` - API/service calls (authService.ts)
+- `validators/` - Zod schemas (loginSchema, registerSchema)
+- `types/` - TypeScript interfaces
+- `index.ts` - Barrel exports
 
 ### Path Aliases
 
@@ -117,16 +133,28 @@ Note: Use relative imports for `src/env.ts` - `@env` alias was removed.
 
 ## State Management
 
-Redux slices in `src/app/store/slices/`:
+**App-level slices** in `src/app/store/slices/`:
 
 - `authSlice` - Authentication state
 - `bleSlice` - BLE device state
 - `aiSlice` - AI detection state
 - `ttsSlice` - Text-to-speech state
-- `settingsSlice` - User preferences
+- `settingsSlice` - User preferences (includes `hasCompletedOnboarding`)
 - `emergencySlice` - Emergency handling
 - `navigationSlice` - Navigation state
 - `alertsSlice` - Alert management
+
+**Feature-level slices** (co-located with features):
+
+- `features/auth/store/authSlice.ts` - Auth async thunks (login, register, logout, loadStoredAuth)
+- `features/onboarding/store/onboardingSlice.ts` - Onboarding state (permissions, device pairing)
+
+**Redux store** (`src/app/store/index.ts`) combines app-level and feature-level slices using `configureStore`.
+
+**Typed hooks**:
+
+- `useAppSelector` - typed Redux selector
+- `useAppDispatch` - typed Redux dispatch (from `@app/store`)
 
 ## Core Services
 
@@ -140,15 +168,40 @@ Redux slices in `src/app/store/slices/`:
 
 ## Navigation Stacks
 
-7 navigators: Root, Auth (Login, Register, ForgotPassword), Onboarding (Welcome, Permissions, DevicePairing, Complete), Main Tab (Home, Navigation, Alerts, Device, Settings), Emergency, Modal, Calibration
+7 navigators in `src/app/navigation/`:
+
+| Navigator       | Location                          | Screens                                                                            |
+| --------------- | --------------------------------- | ---------------------------------------------------------------------------------- |
+| **Root**        | `AppNavigator.tsx`                | Splash, Auth, Onboarding, Main, Emergency, Modal, Calibration                      |
+| **Auth**        | `stacks/AuthNavigator.tsx`        | Login, Register, ForgotPassword                                                    |
+| **Onboarding**  | `stacks/OnboardingNavigator.tsx`  | Welcome, Permissions, DevicePairing, Complete                                      |
+| **Main Tab**    | `stacks/MainTabNavigator.tsx`     | HomeTab, NavigationTab, AlertsTab, DeviceTab, SettingsTab (each with nested stack) |
+| **Emergency**   | `stacks/EmergencyNavigator.tsx`   | EmergencyHome, CaregiverContacts, EmergencyHistory                                 |
+| **Modal**       | `stacks/ModalNavigator.tsx`       | Confirmation, Alert, BottomSheet                                                   |
+| **Calibration** | `stacks/CalibrationNavigator.tsx` | CalibrationStart, CalibrationInstructions, CalibrationComplete                     |
+
+**Entry point logic** (`AppNavigator.tsx:25-29`):
+
+- Not authenticated → `Auth`
+- Not completed onboarding → `Onboarding`
+- Otherwise → `Main`
+
+**Navigation types**: All param lists defined in `types/navigation.ts` with `RootStackParamList` as the global root.
+
+**Splash screen**: Used as initial route with `animation: 'none'` - handles app initialization before routing.
 
 ## Design System
 
-11 accessible components in `src/shared/design-system/components/`:
+12 accessible components in `src/shared/design-system/components/`:
 
-- Button, Card, Input, Slider, Toggle, Modal, Loader, EmptyState, FAB, Alert, VoiceFeedbackBanner
+- Button, Card, Input, FormInput (with react-hook-form integration), Slider, Toggle, Modal, Loader, EmptyState, FAB, Alert, VoiceFeedbackBanner
 
 Theme: Dark-first with high contrast, 48px minimum touch targets, WCAG 2.1 AA target
+
+**Theme tokens** (`src/shared/design-system/theme/`):
+
+- `tokens.ts` - Colors, spacing, radius, typography
+- `semantic.ts` - Semantic color mappings (background, foreground, surface, border)
 
 ## Git Workflow
 
@@ -164,10 +217,56 @@ Run specific test:
 npm test -- --testPathPattern=bleSlice
 ```
 
-## Known Issues
+## Auth & Onboarding (Phase 5)
 
-- 46 lint warnings remaining (mostly unused imports and `any` types)
-- JDK 17+ required for Android builds (not installed in current environment)
+**Auth flows** (zod + react-hook-form):
+
+- LoginScreen, RegisterScreen, ForgotPasswordScreen
+- Validation schemas in `features/auth/validators/`
+- `useFormValidation` hook handles form submission with accessibility announcements
+- Errors shown only after field interaction (touchedFields pattern)
+
+**Onboarding flows** (4-step wizard):
+
+- WelcomeScreen → PermissionsScreen → DevicePairingScreen → CompleteScreen
+- `usePermissions` hook handles Android PermissionsAndroid
+- `useOnboarding` hook manages navigation and state
+- Stores completion in StorageService via STORAGE_KEYS
+
+**Storage keys** (from `core/storage`):
+
+- ONBOARDING_COMPLETE, DEVICE_PAIRED, AUTH_TOKEN, USER_DATA
+
+## Home Dashboard (Phase 6)
+
+**Dashboard architecture** (`src/features/home/dashboard/`):
+
+- `types/` - WidgetStatus, DashboardState, DashboardConfig interfaces
+- `middleware/` - DashboardEventMiddleware connects EventBus to Redux
+- `hooks/` - useDashboard, useDashboardWidget, useObstacleHistory, useDeviceStatus, useAIStatus
+- `widgets/` - BLEStatusWidget, AIStatusWidget, ObstacleDetectionCard, AIInstructionBanner, EmergencyFAB, QuickActions
+
+**Widget pattern**:
+
+- Each widget has `compact` and full modes
+- Widgets use Redux state via useAppSelector
+- Accessibility labels for screen reader support
+- Event subscriptions for real-time updates
+
+**Dashboard widgets**:
+
+- `BLEStatusWidget` - signal bars, battery, connect/disconnect
+- `AIStatusWidget` - detection count, obstacle preview, start/stop
+- `ObstacleDetectionCard` - severity (danger/caution/safe), distance, direction, voice instruction
+- `AIInstructionBanner` - auto-dismiss, replay, accessibility announcements
+- `EmergencyFAB` - countdown animation, cancel, position prop
+- `QuickActions` - grid/row/stack layouts with preset actions
+
+**Realtime rendering**:
+
+- EventBus subscriptions trigger accessibility announcements
+- Redux updates from DashboardEventMiddleware on BLE/AI/emergency events
+- Pull-to-refresh with RefreshControl
 
 ## Performance Targets
 
@@ -183,3 +282,12 @@ npm test -- --testPathPattern=bleSlice
 - **Env imports**: Use relative paths (`../../env`) not `@env` alias (alias was removed)
 - **Build issues**: Path alias errors - verify babel-plugin-module-resolver in babel.config.js matches metro.config.js and tsconfig.json
 - **Product flavor naming**: Use `stagingEnv` not `staging` (was renamed to avoid BuildType collision)
+- **Babel plugin order**: export-namespace-from → module-resolver → reanimated (in babel.config.js)
+- **Form validation UX**: Errors only show after field is touched/blurred (touchedFields pattern)
+- **Single NavigationContainer**: App-level container only in `app/index.tsx` - do NOT add nested containers in navigators
+- **SplashScreen**: Always rendered first with no animation - handles auth/onboarding checks before routing
+
+## Known Issues
+
+- ~46 lint warnings remaining (mostly unused imports and `any` types)
+- JDK 17+ required for Android builds (not installed in current environment)

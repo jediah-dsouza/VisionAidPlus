@@ -1,26 +1,149 @@
-import { useAppSelector } from '@app/store';
-import { eventBus, EVENTS } from '../../../core';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useAppSelector, useAppDispatch } from '@app/store';
+import { eventBus, EVENTS } from '@core/events/EventBus';
+import { accessibilityEngine } from '@core/accessibility';
+import { aiActions } from '@app/store/slices/aiSlice';
+import { bleActions } from '@app/store/slices/bleSlice';
+import { bleService } from '@core/native/BLEService';
+import { aiService } from '@core/native/AIService';
 
 export const useHome = () => {
-  const bleStatus = useAppSelector(state => state.ble.status);
-  const aiStatus = useAppSelector(state => state.ai.status);
-  const emergencyStatus = useAppSelector(state => state.emergency.status);
+  const dispatch = useAppDispatch();
 
-  const summary = {
-    deviceConnected: bleStatus === 'connected',
-    aiActive: aiStatus === 'detecting' || aiStatus === 'processing',
-    emergencyActive: emergencyStatus !== 'idle',
-    lastObstacle: useAppSelector(state => state.ai.currentObstacle),
-  };
+  const bleState = useAppSelector(state => state.ble);
+  const aiState = useAppSelector(state => state.ai);
+  const emergencyState = useAppSelector(state => state.emergency);
+  const authState = useAppSelector(state => state.auth);
+
+  const summary = useMemo(
+    () => ({
+      deviceConnected: bleState.status === 'connected',
+      aiActive: aiState.status === 'detecting' || aiState.status === 'processing',
+      emergencyActive: emergencyState.status !== 'idle',
+      lastObstacle: aiState.currentObstacle,
+      detectionCount: aiState.detectionHistory.length,
+      hasUser: !!authState.user,
+      userName: authState.user?.name ?? 'User',
+    }),
+    [bleState, aiState, emergencyState, authState],
+  );
 
   useEffect(() => {
-    const unsubscribe = eventBus.subscribe(EVENTS.AI_OBSTACLE_DETECTED, payload => {
-      console.log('Home: Obstacle detected', payload);
-    });
+    const unsubscribeObstacle = eventBus.subscribe(
+      EVENTS.AI_OBSTACLE_DETECTED,
+      payload => {
+        const obstacle = payload as { type: string; distance: number; voiceInstruction: string };
+        accessibilityEngine.announce(
+          `Obstacle detected: ${obstacle.type}, ${obstacle.distance} centimeters away`,
+          'high',
+        );
+      },
+      'normal',
+    );
 
-    return unsubscribe;
+    const unsubscribeDanger = eventBus.subscribe(
+      EVENTS.AI_DANGER_DETECTED,
+      payload => {
+        const danger = payload as { type: string; distance: number; voiceInstruction: string };
+        accessibilityEngine.announce(
+          `Warning! ${danger.type} detected very close. ${danger.voiceInstruction}`,
+          'critical',
+        );
+      },
+      'critical',
+    );
+
+    const unsubscribeBleConnected = eventBus.subscribe(
+      EVENTS.BLE_DEVICE_CONNECTED,
+      payload => {
+        const device = payload as { deviceName?: string };
+        accessibilityEngine.announce(
+          `Device connected${device.deviceName ? `: ${device.deviceName}` : ''}`,
+          'normal',
+        );
+      },
+      'high',
+    );
+
+    const unsubscribeBleDisconnected = eventBus.subscribe(
+      EVENTS.BLE_DEVICE_DISCONNECTED,
+      () => {
+        accessibilityEngine.announce('Device disconnected', 'high');
+      },
+      'high',
+    );
+
+    return () => {
+      unsubscribeObstacle();
+      unsubscribeDanger();
+      unsubscribeBleConnected();
+      unsubscribeBleDisconnected();
+    };
   }, []);
 
-  return { summary, bleStatus, aiStatus, emergencyStatus };
+  const handleConnectDevice = useCallback(async () => {
+    accessibilityEngine.announce('Starting device scan', 'normal');
+    dispatch(bleActions.setStatus('scanning'));
+    try {
+      await bleService.startScan();
+    } catch (error) {
+      dispatch(bleActions.setError((error as Error).message));
+    }
+  }, [dispatch]);
+
+  const handleDisconnectDevice = useCallback(async () => {
+    accessibilityEngine.announce('Disconnecting device', 'normal');
+    try {
+      await bleService.disconnect();
+      dispatch(bleActions.setConnectedDevice(null));
+      dispatch(bleActions.setStatus('disconnected'));
+    } catch (error) {
+      dispatch(bleActions.setError((error as Error).message));
+    }
+  }, [dispatch]);
+
+  const handleStartDetection = useCallback(() => {
+    accessibilityEngine.announce('Starting AI detection', 'normal');
+    dispatch(aiActions.setStatus('detecting'));
+    aiService.initialize();
+  }, [dispatch]);
+
+  const handleStopDetection = useCallback(() => {
+    accessibilityEngine.announce('Stopping AI detection', 'normal');
+    dispatch(aiActions.setStatus('idle'));
+    dispatch(aiActions.clearObstacle());
+  }, [dispatch]);
+
+  return {
+    summary,
+    bleStatus: bleState.status,
+    aiStatus: aiState.status,
+    emergencyStatus: emergencyState.status,
+    isLoading:
+      bleState.status === 'scanning' ||
+      bleState.status === 'connecting' ||
+      aiState.status === 'processing',
+    error: bleState.error ?? aiState.error ?? null,
+    handleConnectDevice,
+    handleDisconnectDevice,
+    handleStartDetection,
+    handleStopDetection,
+  };
+};
+
+export const useHomeDashboard = () => {
+  const { summary, isLoading, error, ...handlers } = useHome();
+  const detectionHistory = useAppSelector(state => state.ai.detectionHistory);
+  const obstacles = useMemo(
+    () => [summary.lastObstacle, ...detectionHistory].filter(Boolean),
+    [summary.lastObstacle, detectionHistory],
+  );
+
+  return {
+    summary,
+    obstacles,
+    isLoading,
+    error,
+    ...handlers,
+  };
 };

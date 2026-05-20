@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@app/providers/ThemeProvider';
-import { useAppSelector } from '@app/store';
+import { useAppSelector, useAppDispatch } from '@app/store';
 
 import type { RootStackParamList } from './types/navigation';
 import { getModalScreenOptions } from './utils/navigationConfig';
@@ -14,15 +14,51 @@ import { ModalNavigator } from './stacks/ModalNavigator';
 import { CalibrationNavigator } from './stacks/CalibrationNavigator';
 
 import { SplashScreen } from './screens/SplashScreen';
+import {
+  isDevAuthBypassEnabled,
+  getMockAuthData,
+  getInitialSettingsState,
+  logDevAuthStatus,
+} from '@features/auth/DevAuthBypass';
+import { setUser, setToken } from '@features/auth';
+import { settingsActions } from '@app/store/slices/settingsSlice';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 export const AppNavigator: React.FC = () => {
   const { colors } = useTheme();
+  const dispatch = useAppDispatch();
+
+  // DEV ONLY: Initialize mock auth state if bypass is enabled
+  useEffect(() => {
+    if (isDevAuthBypassEnabled()) {
+      logDevAuthStatus();
+
+      // Set mock user and token in Redux auth state
+      const mockAuthData = getMockAuthData();
+      if (mockAuthData.user) {
+        dispatch(setUser(mockAuthData.user));
+        dispatch(setToken(mockAuthData.token));
+      }
+
+      // Set onboarding complete in settings
+      const mockSettings = getInitialSettingsState();
+      if (mockSettings) {
+        dispatch(settingsActions.setHasCompletedOnboarding(mockSettings.hasCompletedOnboarding));
+      }
+    }
+  }, [dispatch]);
+
   const { isAuthenticated } = useAppSelector(state => state.auth);
   const { hasCompletedOnboarding } = useAppSelector(state => state.settings);
 
   const getInitialRoute = (): keyof RootStackParamList => {
+    // DEV ONLY: Skip auth flow if bypass is enabled
+    if (isDevAuthBypassEnabled()) {
+      return 'Main';
+    }
+
+    // Production auth logic
     if (!isAuthenticated) return 'Auth';
     if (!hasCompletedOnboarding) return 'Onboarding';
     return 'Main';

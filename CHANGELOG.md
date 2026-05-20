@@ -11,6 +11,165 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 6.5 - Dashboard Dev Testing Harness
+
+**Dev Simulation Engine:**
+
+- Created `src/features/home/dev/DevSimulationEngine.ts` - Phase 6 dashboard validation harness
+- Implemented simulation methods for BLE events (connect, disconnect, low battery, weak signal, reconnecting)
+- Implemented simulation methods for AI events (obstacle, danger, warning, clear)
+- Implemented simulation methods for Emergency events (trigger, cancel)
+- Implemented simulation methods for Navigation events (start, stop)
+- Added comprehensive debug logging across entire simulation pipeline
+- Added simulation metrics tracking (total events, latency, active listeners, render count)
+- Added event log with lifecycle tracking (EventBus, middleware, Redux, accessibility, UI render status)
+- Added stress test mode with configurable duration
+- Added validation methods for emergency state and BLE connection state
+
+**Dashboard Dev Panel:**
+
+- Created `src/features/home/dev/DashboardDevPanel.tsx` - Main dev testing panel
+- Implemented 6-tab interface: Simulation, Console, Validation, Stress, Metrics, Summary
+- Created simulation controls grid with BLE, AI, Emergency, Navigation event buttons
+- Created custom AI obstacle simulation controls (left, center, right with distance)
+- Created Force Redux Dispatch buttons for bypassing EventBus to test Redux directly:
+  - Force BLE Connected/Disconnected
+  - Force AI Obstacle
+  - Force Emergency
+  - Log Redux State
+- Integrated DevEventConsole for event log display
+- Integrated DevValidationIndicators for validation status
+- Integrated DevStressTest for stress testing controls
+- Integrated DevMetrics for performance metrics
+- Integrated DevValidationSummary for validation results
+
+**Dev Event Console:**
+
+- Created `src/features/home/dev/DevEventConsole.tsx` - Event log panel
+- Displays timestamp, event name, and 4 status indicators per event
+- Status indicators: EventBus, Middleware, Redux, UI Render
+- Color-coded status: pending (gray), success (green), failed (red), skipped (yellow)
+- Expandable event rows showing full lifecycle details and payload
+- Auto-scroll toggle and clear functionality
+- Legend showing status color meanings
+
+**Dev Validation Components:**
+
+- Created `src/features/home/dev/DevValidationIndicators.tsx` - Validation status display
+- Created `src/features/home/dev/DevStressTest.tsx` - Stress test controls
+- Created `src/features/home/dev/DevMetrics.tsx` - Performance metrics display
+- Created `src/features/home/dev/DevValidationSummary.tsx` - Validation summary
+
+**Debug Logging Infrastructure:**
+
+- Added unique instance ID to EventBus constructor for duplicate detection
+- Added instance ID prefix to all EventBus logs ([EventBus#1], [EventBus#2], etc.)
+- Added stack trace logging on EventBus instance creation
+- Added comprehensive subscribe/unsubscribe logging with handler counts
+- Added publish logging with payload and all registered subscriptions
+- Added handler invocation logging with error handling
+- Added debug logging to DashboardEventMiddleware for all BLE, AI, Emergency subscriptions
+- Added debug logging to DevSimulationEngine simulate() method with payload, state, and latency
+- Added render logging to BLEStatusWidget showing selector execution and state
+
+**Accessibility Engine Initialization:**
+
+- Added `accessibilityEngine.initialize()` call at app startup in `__DEV__` mode
+- Ensures AccessibilityEngine is ready before announcing messages
+- Added debug logging confirming initialization
+
+#### Phase 6 - Home Dashboard System
+
+**Dashboard Architecture:**
+
+- Created modular dashboard widget system (`src/features/home/dashboard/`)
+- Created DashboardEventMiddleware for EventBus-to-Redux integration
+- Created dashboard types with WidgetStatus, BLEStatusData, AIStatusData, EmergencyStatusData
+- Implemented DEFAULT_DASHBOARD_CONFIG with refreshInterval, maxObstacleHistory, alertTimeout
+
+**Dashboard Widgets:**
+
+- Created BLEStatusWidget with signal strength bars, battery level, connect/disconnect actions
+- Created AIStatusWidget with detection count, current obstacle preview, start/stop controls
+- Created ObstacleDetectionCard with severity colors, distance display, direction indicator, voice instructions
+- Created AIInstructionBanner with auto-dismiss, replay, and dismiss functionality
+- Created EmergencyFAB with countdown animation, cancel functionality, position prop support
+- Created QuickActions and QuickActionsPreset with grid/row/stack layouts
+
+**Dashboard Hooks:**
+
+- Created useDashboard hook for centralized dashboard state management
+- Created useDashboardWidget for widget-level auto-refresh logic
+- Created useObstacleHistory for detection history with maxItems limit
+- Created useDeviceStatus for BLE device connection status
+- Created useAIStatus for AI detection status monitoring
+
+**HomeScreen Updates:**
+
+- Updated HomeScreen to use new dashboard architecture with status widgets
+- Added pull-to-refresh functionality
+- Added time-based greeting (morning/afternoon/evening)
+- Integrated BLEStatusWidget and AIStatusWidget in compact and full modes
+- Added obstacle list with dismiss functionality
+- Integrated EmergencyFAB with position prop
+
+**Realtime Rendering:**
+
+- Event-driven updates via EventBus subscriptions in useHome
+- Redux integration for BLE, AI, and Emergency state changes
+- Accessibility announcements for real-time events (obstacle detected, device connected, emergency triggered)
+
+**Widget States:**
+
+- Loading states with Loader component
+- Disconnected states with retry actions
+- Error states with alert components
+- Connected/active states with status indicators
+
+**Dev Auth Bypass (Temporary Testing Feature):**
+
+- Created `src/features/auth/DevAuthBypass.ts` for development-only authentication
+- Auto-authenticates mock user on app launch (only in **DEV** mode)
+- Skips Login/Register screens during development
+- Navigates directly to HomeScreen/dashboard
+- Preserves existing Redux auth architecture
+- Does not affect production builds
+- Added `setHasCompletedOnboarding` action to settingsSlice
+- Integrated bypass in AppNavigator with clear dev-only comments
+
+To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
+
+#### Phase 5 - Authentication & Onboarding
+
+**Auth Feature Module:**
+
+- Created LoginScreen with Zod validation and React Hook Form integration
+- Created RegisterScreen with password requirements validation
+- Created ForgotPasswordScreen with reset flow
+- Created Zod validation schemas (loginSchema, registerSchema, forgotPasswordSchema)
+- Created FormInput component with Controller integration for accessible forms
+- Created useFormValidation hook for form submission handling with AccessibilityEngine announcements
+- Integrated Redux authSlice with async thunks (login, register, logout)
+- Implemented touchedFields-based validation for UX (errors show only after interaction)
+- Added accessibility labels and announcements for all form inputs
+
+**Onboarding Feature Module:**
+
+- Created WelcomeScreen with feature highlights
+- Created PermissionsScreen with Android permissions request flow
+- Created DevicePairingScreen with mock BLE device scanning
+- Created CompleteScreen with setup checklist
+- Created onboardingSlice for Redux state management (isComplete, permissions, devicePaired)
+- Created useOnboarding hook for navigation and state
+- Created usePermissions hook with PermissionsAndroid integration
+- Implemented permission status tracking (undetermined, granted, denied, blocked)
+- Integrated AccessibilityEngine for voice feedback on permissions
+
+**Babel & Build Configuration:**
+
+- Added @babel/plugin-transform-export-namespace-from for Zod v4 compatibility
+- Updated babel.config.js plugin order: export-namespace -> module-resolver -> reanimated
+
 #### Accessibility Engine (Phase 4)
 
 - Created centralized accessibility architecture as CORE SYSTEM
@@ -154,6 +313,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+#### Dashboard Dev Testing Pipeline Fixes
+
+**Accessibility Engine Initialization:**
+
+- Fixed AccessibilityEngine not being initialized at app startup
+- Added `accessibilityEngine.initialize()` call in `app/index.tsx` during `__DEV__` mode
+- Ensures announcements can be made when simulation buttons are pressed
+
+**EventBus Debug Logging:**
+
+- Added instance tracking to detect duplicate EventBus instances
+- Added comprehensive logging to publish(), subscribe(), and constructor methods
+- Added logging showing all registered subscriptions at publish time
+
+**Dashboard Middleware Debug Logging:**
+
+- Added startup logging confirming middleware initialization
+- Added subscription logging for each event (BLE, AI, Emergency)
+- Added handler invocation logging showing received payloads
+- Added Redux action dispatch confirmation logging
+
+**BLE Widget Debug Logging:**
+
+- Added render logging showing widget mounting/updating
+- Added selector execution logging showing full Redux state
+- Added state mapping logging for status, connection, signal, battery
+
+#### TextInput Fixes
+
+- Fixed TextInput not editable in auth screens - removed conflicting onChangeText prop override from LoginScreen
+- Fixed KeyboardAvoidingView behavior on Android - changed from 'height' to undefined to prevent touch interception
+- Fixed FormInput Controller integration - proper field.value, field.onChange, field.onBlur wiring
+
+#### Validation UX Fixes
+
+- Fixed password validation showing on initial render before user interaction
+- Added touchedFields-based conditional error rendering in LoginScreen, RegisterScreen, ForgotPasswordScreen
+- Fixed PasswordRequirements component to only show after password field is touched
+- Preserved Zod validation logic while improving UX
+
+#### Module Resolution Fixes
+
+- Fixed @features/auth/screens module resolution - ensured index.ts exports exist
+- Fixed @features/onboarding/screens module resolution - ensured index.ts exports exist
+- Verified all navigation imports work correctly
+
 #### TypeScript Fixes
 
 - Fixed NavigationContainerRef generic type argument
@@ -260,9 +465,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TTS delay target: <150ms
 - All components must be accessibility-optimized
 - Build variants: debug, staging, release
+- Debug mode adds comprehensive logging for EventBus, Redux, and UI updates
 
 ---
 
 ## Known Issues
 
-- 46 lint warnings remaining (mostly unused imports and any types)
+- ~46 lint warnings remaining (mostly unused imports and `any` types)
+- JDK 17+ required for Android builds (not installed in current environment)
+
+## Debug Infrastructure
+
+The following debug tools are available for development:
+
+**DevSimulationEngine** (`src/features/home/dev/DevSimulationEngine.ts`):
+- Direct Redux dispatch methods for testing
+- EventBus publish methods with logging
+- Accessibility announcement methods
+- Stress test mode
+
+**DashboardDevPanel** - In-app dev panel accessible via DEV button:
+- Simulation tab: Fire BLE, AI, Emergency, Navigation events
+- Force Redux Dispatch: Bypass EventBus to test Redux directly
+- Console tab: View event lifecycle logs
+- Validation tab: View validation status
+- Metrics tab: View performance metrics
+- Summary tab: View validation summary
+
+**Console Log Prefixes:**
+- `[DevPanel]` - DashboardDevPanel button presses
+- `[DevSim]` - DevSimulationEngine operations
+- `[EventBus#N]` - EventBus instance N operations
+- `[DashboardMiddleware]` - DashboardEventMiddleware operations
+- `[BLEWidget]` - BLEStatusWidget renders
+- `[AccessibilityEngine]` - Accessibility announcements

@@ -12,6 +12,16 @@ import { navigationGuard } from './navigation/utils/navigationGuards';
 import env from '../env';
 import { logger } from '@core/debug';
 
+// DEV ONLY: Initialize dashboard event middleware
+import { dashboardEventMiddleware } from '@features/home/dashboard/middleware';
+import { accessibilityEngine } from '@core/accessibility';
+if (__DEV__) {
+  accessibilityEngine.initialize();
+  logger.debug('AccessibilityEngine initialized');
+  dashboardEventMiddleware.initialize();
+  logger.debug('Dashboard event middleware initialized');
+}
+
 LogBox.ignoreLogs(['Non-serializable values were found in the navigation state']);
 
 const styles = StyleSheet.create({
