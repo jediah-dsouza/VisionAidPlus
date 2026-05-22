@@ -44,6 +44,7 @@ export class HapticCoordinator {
   private pendingHaptics: Array<{ pattern: string; timestamp: number }> = [];
   private processingPending = false;
   private destroyed = false;
+  private canVibrate = true;
 
   constructor(config: Partial<HapticConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -67,30 +68,36 @@ export class HapticCoordinator {
   }
 
   vibrate(pattern: HapticPattern = 'light'): void {
-    if (this.destroyed || !this.config.enabled) return;
+    if (this.destroyed || !this.config.enabled || !this.canVibrate) return;
 
-    const patternDef = PATTERNS[pattern];
-    if (!patternDef) {
-      logger.warn(`HapticCoordinator: Unknown pattern ${pattern}`);
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceLastVibration = now - this.lastVibrationTime;
-
-    if (this.config.coordWithVoice && this.isVoiceSpeaking) {
-      if (timeSinceLastVibration < this.config.voiceGapMs * 2) {
-        if (this.pendingHaptics.length >= MAX_PENDING_HAPTICS) {
-          this.pendingHaptics.shift();
-          logger.debug(`HapticCoordinator: Pending queue full, dropping oldest`);
-        }
-        this.pendingHaptics.push({ pattern, timestamp: now });
-        logger.debug(`HapticCoordinator: Queued haptic ${pattern} (voice speaking)`);
+    try {
+      const patternDef = PATTERNS[pattern];
+      if (!patternDef) {
+        logger.warn(`HapticCoordinator: Unknown pattern ${pattern}`);
         return;
       }
-    }
 
-    this.triggerVibration(patternDef, pattern);
+      const now = Date.now();
+      const timeSinceLastVibration = now - this.lastVibrationTime;
+
+      if (this.config.coordWithVoice && this.isVoiceSpeaking) {
+        if (timeSinceLastVibration < this.config.voiceGapMs * 2) {
+          if (this.pendingHaptics.length >= MAX_PENDING_HAPTICS) {
+            this.pendingHaptics.shift();
+            logger.debug(`HapticCoordinator: Pending queue full, dropping oldest`);
+          }
+          this.pendingHaptics.push({ pattern, timestamp: now });
+          logger.debug(`HapticCoordinator: Queued haptic ${pattern} (voice speaking)`);
+          return;
+        }
+      }
+
+      this.triggerVibration(patternDef, pattern);
+    } catch (error) {
+      this.canVibrate = false;
+      console.warn('[Haptics] vibration failed', error);
+      logger.error('HapticCoordinator: vibrate failed, disabling haptics', error);
+    }
   }
 
   vibrateSync(pattern: HapticPattern = 'light'): void {
@@ -102,7 +109,7 @@ export class HapticCoordinator {
   }
 
   private triggerVibration(patternDef: HapticPatternDef, name: string): void {
-    if (this.destroyed) return;
+    if (this.destroyed || !this.canVibrate) return;
 
     try {
       const duration = patternDef.duration;
@@ -110,60 +117,72 @@ export class HapticCoordinator {
       this.lastVibrationTime = Date.now();
       logger.debug(`HapticCoordinator: Triggered ${name} pattern`);
     } catch (error) {
-      logger.error(`HapticCoordinator: Failed to trigger ${name}`, error);
+      this.canVibrate = false;
+      console.warn('[Haptics] vibration failed', error);
+      logger.error(`HapticCoordinator: Failed to trigger ${name}, disabling haptics`, error);
     }
   }
 
   private async processPendingHaptics(): Promise<void> {
-    if (this.destroyed || this.processingPending) return;
+    if (this.destroyed || this.processingPending || !this.canVibrate) return;
     this.processingPending = true;
 
-    while (this.pendingHaptics.length > 0) {
-      if (this.destroyed) break;
+    try {
+      while (this.pendingHaptics.length > 0) {
+        if (this.destroyed) break;
 
-      const haptic = this.pendingHaptics.shift();
-      if (haptic) {
-        const patternDef = PATTERNS[haptic.pattern];
-        if (patternDef) {
-          await new Promise(resolve => setTimeout(resolve, this.config.voiceGapMs));
-          if (!this.destroyed) {
-            this.triggerVibration(patternDef, haptic.pattern);
+        const haptic = this.pendingHaptics.shift();
+        if (haptic) {
+          const patternDef = PATTERNS[haptic.pattern];
+          if (patternDef) {
+            await new Promise(resolve => setTimeout(resolve, this.config.voiceGapMs));
+            if (!this.destroyed) {
+              this.triggerVibration(patternDef, haptic.pattern);
+            }
           }
         }
       }
+    } catch (error) {
+      this.canVibrate = false;
+      console.warn('[Haptics] processPendingHaptics failed', error);
+      logger.error('HapticCoordinator: processPendingHaptics failed, disabling haptics', error);
     }
 
     this.processingPending = false;
   }
 
   vibrateByPriority(priority: EventPriority): void {
-    if (this.destroyed) return;
-    switch (priority) {
-      case 'critical':
-        this.vibrate('emergency');
-        break;
-      case 'high':
-        this.vibrate('warning');
-        break;
-      case 'normal':
-        this.vibrate('medium');
-        break;
-      case 'low':
-        this.vibrate('light');
-        break;
+    if (this.destroyed || !this.canVibrate) return;
+    try {
+      switch (priority) {
+        case 'critical':
+          this.vibrate('emergency');
+          break;
+        case 'high':
+          this.vibrate('warning');
+          break;
+        case 'normal':
+          this.vibrate('medium');
+          break;
+        case 'low':
+          this.vibrate('light');
+          break;
+      }
+    } catch (error) {
+      console.warn('[Haptics] vibrateByPriority failed', error);
     }
   }
 
   vibrateSuccess(): void {
-    this.vibrate('success');
+    try { this.vibrate('success'); } catch (error) { console.warn('[Haptics] vibrateSuccess failed', error); }
   }
 
   vibrateWarning(): void {
-    this.vibrate('warning');
+    try { this.vibrate('warning'); } catch (error) { console.warn('[Haptics] vibrateWarning failed', error); }
   }
 
   vibrateError(): void {
-    this.vibrate('error');
+    try { this.vibrate('error'); } catch (error) { console.warn('[Haptics] vibrateError failed', error); }
   }
 
   cancel(): void {
@@ -171,6 +190,7 @@ export class HapticCoordinator {
     try {
       Vibration.cancel();
     } catch (error) {
+      console.warn('[Haptics] cancel failed', error);
       logger.error('HapticCoordinator: Failed to cancel vibration', error);
     }
   }

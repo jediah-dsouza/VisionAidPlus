@@ -185,13 +185,21 @@ class AccessibilityEngine {
   private setupSpeechController(): void {
     speechController.setStateChangeListener((state: SpeechState) => {
       if (this.destroyed) return;
-      if (state === 'speaking') {
-        hapticCoordinator.setVoiceSpeaking(true);
-      } else {
-        hapticCoordinator.setVoiceSpeaking(false);
+      try {
+        if (state === 'speaking') {
+          hapticCoordinator.setVoiceSpeaking(true);
+        } else {
+          hapticCoordinator.setVoiceSpeaking(false);
+        }
+      } catch (error) {
+        console.warn('[AccessibilityEngine] setVoiceSpeaking failed', error);
       }
-      if (state === 'idle') {
-        accessibilityEventEmitter.emitAnnouncementCompleted('');
+      try {
+        if (state === 'idle') {
+          accessibilityEventEmitter.emitAnnouncementCompleted('');
+        }
+      } catch (error) {
+        console.warn('[AccessibilityEngine] emitAnnouncementCompleted failed', error);
       }
     });
   }
@@ -205,32 +213,52 @@ class AccessibilityEngine {
 
   private handleCriticalEvent(eventName: string, customMessage?: string): void {
     if (this.destroyed) return;
-    const mapping = eventPriorityMapper.getPriority(eventName);
-    const message = customMessage || mapping.messageTemplate;
+    try {
+      const mapping = eventPriorityMapper.getPriority(eventName);
+      const message = customMessage || mapping.messageTemplate;
 
-    this.announce(message, 'critical', true);
-    this.triggerHaptic(mapping.hapticPattern || 'emergency');
+      this.announce(message, 'critical', true);
+      this.triggerHaptic(mapping.hapticPattern || 'emergency');
+    } catch (error) {
+      console.warn('[AccessibilityEngine] handleCriticalEvent failed', error);
+    }
   }
 
   private handleHighPriorityEvent(eventName: string, customMessage?: string): void {
     if (this.destroyed) return;
-    const mapping = eventPriorityMapper.getPriority(eventName);
-    const message = customMessage || mapping.messageTemplate;
+    try {
+      const mapping = eventPriorityMapper.getPriority(eventName);
+      const message = customMessage || mapping.messageTemplate;
 
-    if (message) {
-      this.announce(message, 'high', false);
-    }
-    if (mapping.hapticPattern) {
-      this.triggerHaptic(mapping.hapticPattern);
+      if (message) {
+        this.announce(message, 'high', false);
+      }
+      if (mapping.hapticPattern) {
+        this.triggerHaptic(mapping.hapticPattern);
+      }
+    } catch (error) {
+      console.warn('[AccessibilityEngine] handleHighPriorityEvent failed', error);
     }
   }
 
   enterEmergencyMode(): void {
     if (this.destroyed) return;
-    this.emergencyMode = true;
-    speechController.interrupt();
-    hapticCoordinator.vibrate('emergency');
-    accessibilityEventEmitter.emitEmergencyModeEntered();
+    try {
+      this.emergencyMode = true;
+      speechController.interrupt();
+    } catch (error) {
+      console.warn('[AccessibilityEngine] enterEmergencyMode speech interrupt failed', error);
+    }
+    try {
+      hapticCoordinator.vibrate('emergency');
+    } catch (error) {
+      console.warn('[AccessibilityEngine] enterEmergencyMode haptic failed', error);
+    }
+    try {
+      accessibilityEventEmitter.emitEmergencyModeEntered();
+    } catch (error) {
+      console.warn('[AccessibilityEngine] enterEmergencyMode emit failed', error);
+    }
     logger.info('AccessibilityEngine: Emergency mode entered');
   }
 
@@ -250,7 +278,11 @@ class AccessibilityEngine {
     this.config = { ...this.config, ...partial };
 
     if (partial.hapticFeedback !== undefined) {
-      hapticCoordinator.updateConfig({ enabled: partial.hapticFeedback });
+      try {
+        hapticCoordinator.updateConfig({ enabled: partial.hapticFeedback });
+      } catch (error) {
+        console.warn('[AccessibilityEngine] updateConfig haptic failed', error);
+      }
     }
 
     eventBus.publish(EVENTS.SETTINGS_CHANGED, { accessibility: this.config }, 'low');
@@ -324,13 +356,21 @@ class AccessibilityEngine {
   triggerHaptic(pattern: HapticPattern = 'light'): void {
     if (this.destroyed) return;
     if (!this.config.hapticFeedback) return;
-    hapticCoordinator.vibrate(pattern);
+    try {
+      hapticCoordinator.vibrate(pattern);
+    } catch (error) {
+      console.warn('[AccessibilityEngine] triggerHaptic failed', error);
+    }
   }
 
   triggerHapticByPriority(priority: EventPriority): void {
     if (this.destroyed) return;
     if (!this.config.hapticFeedback) return;
-    hapticCoordinator.vibrateByPriority(priority);
+    try {
+      hapticCoordinator.vibrateByPriority(priority);
+    } catch (error) {
+      console.warn('[AccessibilityEngine] triggerHapticByPriority failed', error);
+    }
   }
 
   async focusOnElement(elementId: string): Promise<void> {
@@ -355,14 +395,18 @@ class AccessibilityEngine {
 
   announceFromEvent(eventName: string, customMessage?: string): void {
     if (this.destroyed) return;
-    const mapping = eventPriorityMapper.getPriority(eventName);
-    const message = customMessage || mapping.messageTemplate;
+    try {
+      const mapping = eventPriorityMapper.getPriority(eventName);
+      const message = customMessage || mapping.messageTemplate;
 
-    if (!message) return;
+      if (!message) return;
 
-    this.announce(message, mapping.priority, mapping.canInterrupt);
-    if (mapping.hapticPattern) {
-      this.triggerHaptic(mapping.hapticPattern);
+      this.announce(message, mapping.priority, mapping.canInterrupt);
+      if (mapping.hapticPattern) {
+        this.triggerHaptic(mapping.hapticPattern);
+      }
+    } catch (error) {
+      console.warn('[AccessibilityEngine] announceFromEvent failed', error);
     }
   }
 

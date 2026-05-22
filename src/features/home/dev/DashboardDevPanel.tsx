@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Button as RNButton } from 'react-native';
 import { semanticTokens, tokens } from '@shared/design-system/theme';
 import { devSimulationEngine } from './DevSimulationEngine';
 import type { SimulationEvent, SimulationMetrics } from './DevSimulationEngine';
@@ -334,7 +334,7 @@ interface DashboardDevPanelProps {
   initialVisible?: boolean;
 }
 
-export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVisible = true }) => {
+export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVisible = false }) => {
   // [DIAGNOSTIC] Store identity tracking
   const devPanelStoreId = (store as any).__REDUX_STORE_ID__;
   const devPanelGlobalStore = (globalThis as any).__VISIONAID_STORE__;
@@ -344,6 +344,10 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
   console.log(`[DevPanel]   store.dispatch === store.dispatch (self): ${store.dispatch === store.dispatch}`);
 
   const [isVisible, setIsVisible] = useState(initialVisible);
+  console.log('[DevPanel] isVisible:', isVisible);
+  useEffect(() => {
+    console.log('[DevPanel] isVisible CHANGED:', isVisible);
+  }, [isVisible]);
   const [activeTab, setActiveTab] = useState<DevPanelTab>('simulation');
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [metrics, setMetrics] = useState<SimulationMetrics>({
@@ -384,14 +388,30 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
   ] as const;
 
   if (!isVisible) {
+    console.log('[DevPanel] Rendering DEV toggle button (isVisible: false)');
     return (
-      <Pressable
-        style={styles.toggleButton}
-        onPress={() => setIsVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Open dev panel">
-        <Text style={styles.toggleButtonText}>🧪 DEV</Text>
-      </Pressable>
+      <View style={styles.toggleWrapper}>
+        <RNButton
+          title="DEV"
+          onPress={() => {
+            console.log('[DevPanel] 🎯 RN BUTTON PRESSED - raw RN Button works!');
+            setIsVisible(true);
+          }}
+        />
+        <Pressable
+          style={styles.toggleButton}
+          onPress={() => {
+            console.log('[DevPanel] 🎯 PRESSABLE ONPRESS FIRED');
+            setIsVisible(true);
+          }}
+          onPressIn={() => console.log('[DevPanel] 🔵 PRESSABLE ONPRESSIN FIRED')}
+          onTouchStart={() => console.log('[DevPanel] 🔵 PRESSABLE ONTOUCHSTART FIRED')}
+          onPressOut={() => console.log('[DevPanel] 🔵 PRESSABLE ONPRESSOUT FIRED')}
+          accessibilityRole="button"
+          accessibilityLabel="Open dev panel">
+          <Text style={styles.toggleButtonText}>🧪 DEV</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -655,15 +675,22 @@ const styles = StyleSheet.create({
     color: semanticTokens.colors.foreground.default,
     fontWeight: tokens.fontWeight.semibold,
   },
-  toggleButton: {
+  toggleWrapper: {
     position: 'absolute',
-    top: tokens.spacing[4],
-    right: tokens.spacing[4],
+    top: 60,
+    right: 16,
+    zIndex: 1000,
+    elevation: 1000,
+    pointerEvents: 'box-none',
+  },
+  toggleButton: {
+    width: 80,
+    height: 48,
     backgroundColor: semanticTokens.colors.primary.default,
-    paddingHorizontal: tokens.spacing[3],
-    paddingVertical: tokens.spacing[2],
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: semanticTokens.radius.md,
-    zIndex: 100,
+    pointerEvents: 'auto',
   },
   toggleButtonText: {
     fontSize: semanticTokens.fontSize.xs,

@@ -16,9 +16,11 @@ React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the v
 | Typecheck | `npm run typecheck` |
 | Test | `npm run test` |
 | Single test | `npm test -- --testPathPattern=bleSlice` |
+| CI test | `npm run test:ci` (`--ci --coverage --maxWorkers=2`) |
 | Reset Metro cache | `npm run start:reset` |
 | Format | `npm run format` / `npm run format:check` |
 | Commit (cz) | `npm run commit` |
+| Bundle analysis | `npm run analyze` |
 
 **Strict order**: pre-commit hook runs `eslint --fix --max-warnings=0` + `prettier --write` via lint-staged. `lint:ci` must pass.
 
@@ -28,7 +30,8 @@ React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the v
 
 ## Build Variant Quirks
 
-- Flavor name `stagingEnv` (NOT `staging` — renamed to avoid BuildType collision).
+- Flavor name `stagingEnv` (NOT `staging` — renamed to avoid BuildType collision in `android/app/build.gradle:72`).
+- ⚠️ `npm run android:build:staging` runs `assembleStaging` (wrong gradle task — should be `assembleStagingEnvDebug`).
 - Output naming: `developmentDebug.apk`, `developmentStaging.apk`, `developmentRelease.apk`.
 - Flavor-specific: `./gradlew assembleStagingEnvDebug`.
 
@@ -103,21 +106,11 @@ In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled
 | `[TouchTest]` | Touch interaction diagnostics on Modal buttons |
 | `[HomeScreen]` | HomeScreen render tracking |
 
-### ⚠️ UNRESOLVED: Simulation pipeline — touch interaction layer, not Redux
+### ✅ RESOLVED: Dev Panel Modal auto-opening blocked all touches
 
-**Evolved diagnosis** (as of 2026-05-22): NONE of the simulation buttons in the dev panel respond — no `[DevPanel]` logs, no dispatches, no EventBus events. Force Redux Dispatch buttons also produce no widget re-render even though `store.getState()` confirms state changed. The root cause is in the **touch/interaction layer**, NOT the Redux→React rendering layer.
+**Root cause** (fixed 2026-05-22): `DashboardDevPanel.tsx:337` — `initialVisible = true` defaulted the Dev Panel Modal to visible on mount. The Modal had `transparent={false}` and `presentationStyle="pageSheet"`, creating a full-screen opaque layer that swallowed ALL touch events across the entire app — including the standalone test button in HomeScreen.
 
-**What works**: The standalone orange `🧪 TEST BUTTON` rendered in `HomeScreen.tsx:113-134` fires `[TouchTest]` on every press, proving touch works at the app level. But inside the Modal, nothing fires.
-
-**Current hypothesis**: Touch events swallowed by React Native Modal's dialog layer on Android, blocked by transparent overlay, or prevented by `GestureHandlerRootView` not propagating events into Modal's native window.
-
-**Diagnostic trace map** (read console logs top-to-bottom):
-1. Test button in HomeScreen fires? → touch works at app level
-2. `onTouchStart` fires on Modal header/close button → raw touch reaches Pressable
-3. `onPressIn` fires → Pressable detects gesture
-4. `onPress` fires → end-to-end touch works
-
-**Key files**: `DashboardDevPanel.tsx` (Modal with `transparent={false}`, `pointerEvents="auto"`, `nestedScrollEnabled={true}`, diagnostic `onTouchStart`/`onPressIn` on first 3 buttons). `HomeScreen.tsx:113-134` (standalone test button).
+**Fix**: Changed `initialVisible = true` → `initialVisible = false`. The Dev Panel now starts as a small floating "🧪 DEV" button (`DashboardDevPanel.tsx:386-395`), only opening the full-screen Modal on user tap.
 
 ---
 
@@ -127,11 +120,12 @@ In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled
 - **Env reads from `process.env`** at runtime with fallback defaults via `src/env.ts:21-29`. NOT react-native-dotenv.
 - **Form validation** (Phase 5): Zod + react-hook-form. Errors render only after field interaction (touchedFields pattern).
 - **AccessibilityEngine** + **DashboardEventMiddleware** must be `initialize()`'d at startup (done in `app/index.tsx:19-22` for `__DEV__`, needs call for production).
-- **Only 3 test files** exist: `__tests__/accessibility/VoiceQueue.test.ts`, `__tests__/accessibility/SpeechController.test.ts`, `__tests__/App.test.tsx`. No tests for dashboard widgets or dev harness.
+- **Only 3 test files** exist (`__tests__/accessibility/VoiceQueue.test.ts`, `__tests__/accessibility/SpeechController.test.ts`, `__tests__/App.test.tsx`). Dashboard widgets and dev harness have zero tests.
+- **`Design.json`** at repo root is the formal architecture design reference (layers, event list, states, design tokens).
 - **~46 lint warnings** (unused imports, `any` types). Pre-commit rejects them (`--max-warnings=0`).
 - **`@tanstack/react-query`** in deps but minimally used. **`react-native-gesture-handler`** wraps app root.
 - **`LogBox.ignoreLogs(['Non-serializable values...'])`** suppressed in `app/index.tsx:34`.
-- **`commit-msg` hook** enforces conventional commits: `<type>(<scope>): <description>`. Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert.
+- **`commit-msg` hook** enforces `<type>(<scope>): <description>` with ≤50-char description. Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert.
 
 ## Additional Debugging Hooks
 
