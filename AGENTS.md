@@ -1,293 +1,141 @@
-# VisionAid+ Engineering Guide
+# VisionAid+ Agent Guide
 
-## Project Status
+React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-- **Version**: 1.0.0 (Development started)
-- **Phase**: Phase 6 - Home Dashboard System complete
-- **Completed**: Auth flows (Login, Register, ForgotPassword), Onboarding (Welcome, Permissions, DevicePairing, Complete), Home Dashboard (realtime widgets, EmergencyFAB, AIInstructionBanner), Dev Auth Bypass (testing), 12 design system components, 8 Redux slices, 7 navigation stacks
-- **Platform**: React Native 0.85.3 (CLI), Android-first
+**Current Phase**: 6.5 — Dashboard Dev Testing Harness (+ Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
 
-## Project Setup
+---
 
-### Initial Commands
+## Commands
 
-```bash
-npm install
-npm start
-npm run android
-npm run android:rebuild  # Clean and rebuild
-```
+| Purpose | Command |
+|---------|---------|
+| Run (dev) | `npm run android` |
+| Clean rebuild | `npm run android:rebuild` |
+| Lint | `npm run lint` (or `lint:fix`, `lint:ci` for max-warnings=0) |
+| Typecheck | `npm run typecheck` |
+| Test | `npm run test` |
+| Single test | `npm test -- --testPathPattern=bleSlice` |
+| Reset Metro cache | `npm run start:reset` |
+| Format | `npm run format` / `npm run format:check` |
+| Commit (cz) | `npm run commit` |
 
-### Required Tools
+**Strict order**: pre-commit hook runs `eslint --fix --max-warnings=0` + `prettier --write` via lint-staged. `lint:ci` must pass.
 
-- **Node.js**: >= 22.11.0
-- **JDK**: 17+ (required for Android builds)
-- **Android SDK**: Required for Android builds
+**Engine**: Node >= 22.11.0. JDK 17+ required for Android builds (not installed here).
 
-## Available Scripts
+---
 
-| Command                         | Description                    |
-| ------------------------------- | ------------------------------ |
-| `npm run android`               | Run on Android device/emulator |
-| `npm run android:build:debug`   | Build debug APK                |
-| `npm run android:build:release` | Build release APK              |
-| `npm run android:build:staging` | Build staging APK              |
-| `npm run android:clean`         | Clean Android build            |
-| `npm run android:rebuild`       | Clean and rebuild              |
-| `npm run lint`                  | Run ESLint                     |
-| `npm run lint:fix`              | Auto-fix lint issues           |
-| `npm run format`                | Format code with Prettier      |
-| `npm run format:check`          | Check formatting               |
-| `npm run typecheck`             | TypeScript type check          |
-| `npm run test`                  | Run Jest tests                 |
-| `npm run test:watch`            | Run tests in watch mode        |
-| `npm run test:ci`               | Run tests for CI               |
-| `npm run test:coverage`         | Run with coverage              |
-| `npm run start:reset`           | Reset Metro cache              |
-| `npm run analyze`               | Bundle Android app             |
-| `npm run commit`                | Commit with commitizen         |
+## Build Variant Quirks
 
-## Build Variants
+- Flavor name `stagingEnv` (NOT `staging` — renamed to avoid BuildType collision).
+- Output naming: `developmentDebug.apk`, `developmentStaging.apk`, `developmentRelease.apk`.
+- Flavor-specific: `./gradlew assembleStagingEnvDebug`.
 
-Android uses Build Types + Product Flavors:
+---
 
-**Build Types**: debug, staging, release  
-**Product Flavors**: development, stagingEnv, production (default: development)
+## Architecture Shortcuts
 
-| Command                         | Output                 |
-| ------------------------------- | ---------------------- |
-| `npm run android:build:debug`   | developmentDebug.apk   |
-| `npm run android:build:staging` | developmentStaging.apk |
-| `npm run android:build:release` | developmentRelease.apk |
+### Path aliases (Babel + Metro + TS aligned)
 
-Flavor-specific builds require Gradle directly (e.g., `./gradlew assembleStagingEnvDebug`).
-
-## Architecture
-
-### Source Structure
-
-```
-src/
-├── app/                   # Navigation, providers, Redux store
-│   ├── navigation/        # React Navigation setup (stacks, screens, types)
-│   ├── providers/        # ThemeProvider
-│   └── store/slices/     # Redux slices (8 total)
-├── core/                  # Core services (BLE, AI, TTS, storage, events)
-├── features/             # Feature modules
-│   ├── auth/             # Auth flow (Login, Register, ForgotPassword) + store + hooks
-│   ├── onboarding/       # Onboarding (Welcome, Permissions, DevicePairing, Complete) + store + hooks
-│   ├── home/             # Home screen
-│   ├── device/          # Device pairing/management
-│   ├── alerts/           # Alert management
-│   ├── settings/         # User settings
-│   ├── emergency/       # Emergency handling
-│   └── navigation/       # Navigation assistance
-└── shared/
-    ├── design-system/    # 12 UI components (includes FormInput), theme tokens
-    ├── theme/            # Colors, typography, spacing
-    ├── types/            # Global TypeScript types
-    └── constants/        # App constants
-```
-
-**Note**: Each feature module has its own Redux slice (e.g., `features/auth/store/authSlice.ts`, `features/onboarding/store/onboardingSlice.ts`) separate from app-level slices.
-
-### Feature Module Pattern
-
-Each feature module follows a consistent structure:
-
-- `screens/` - React component screens
-- `store/` - Redux slice and async thunks
-- `hooks/` - Custom hooks (useAuth, useOnboarding, usePermissions, etc.)
-- `services/` - API/service calls (authService.ts)
-- `validators/` - Zod schemas (loginSchema, registerSchema)
-- `types/` - TypeScript interfaces
-- `index.ts` - Barrel exports
-
-### Path Aliases
-
-| Alias       | Path            |
-| ----------- | --------------- |
-| `@`         | `src/`          |
-| `@app`      | `src/app/`      |
-| `@core`     | `src/core/`     |
+| Alias | Path |
+|-------|------|
+| `@` | `src/` |
+| `@app` | `src/app/` |
+| `@core` | `src/core/` |
 | `@features` | `src/features/` |
-| `@shared`   | `src/shared/`   |
+| `@shared` | `src/shared/` |
 
-Note: Use relative imports for `src/env.ts` - `@env` alias was removed.
+**Do NOT use `@env`** — it was removed. Import `src/env.ts` via relative paths (e.g. `../../env`).
 
-## Environment Variables (src/env.ts)
+### Redux layout (two tiers)
 
-| Variable                      | Type    | Default       | Description                                |
-| ----------------------------- | ------- | ------------- | ------------------------------------------ |
-| `ENVIRONMENT`                 | string  | 'development' | 'development' \| 'staging' \| 'production' |
-| `DEBUG_MODE`                  | boolean | **DEV**       | Enable debug logging                       |
-| `LOG_LEVEL`                   | string  | 'debug'       | 'error' \| 'warn' \| 'info' \| 'debug'     |
-| `MOCK_BLE_DEVICE`             | boolean | true          | Use mock BLE (dev only)                    |
-| `MOCK_AI_DETECTION`           | boolean | true          | Use mock AI (dev only)                     |
-| `BLE_SCAN_TIMEOUT`            | number  | 10000         | BLE scan duration (ms)                     |
-| `BLE_RECONNECT_DELAY`         | number  | 3000          | BLE reconnect delay (ms)                   |
-| `EMERGENCY_COUNTDOWN_SECONDS` | number  | 5             | Emergency countdown                        |
-| `TTS_SPEECH_RATE`             | number  | 0.5           | TTS speech rate                            |
-| `API_BASE_URL`                | string  | -             | API endpoint                               |
-| `API_TIMEOUT`                 | number  | 30000         | API timeout (ms)                           |
+- **App-level** slices in `src/app/store/slices/` (7: ble, ai, tts, settings, emergency, navigation, alerts). Auth is feature-level.
+- **Feature-level** slices co-located in `features/auth/store/` and `features/onboarding/store/`.
+- Store combines them in `src/app/store/index.ts`.
+- Export `state.auth` from the feature-level `authReducer`, NOT from an app-level slice.
 
-## State Management
+### Navigation
 
-**App-level slices** in `src/app/store/slices/`:
+- **Single** `NavigationContainer` in `src/app/index.tsx` — NEVER add nested containers.
+- Root nav logic in `AppNavigator.tsx`: `!isAuthenticated → Auth`, `!hasCompletedOnboarding → Onboarding`, else `Main`.
+- Splash screen rendered first with `animation: 'none'`.
 
-- `authSlice` - Authentication state
-- `bleSlice` - BLE device state
-- `aiSlice` - AI detection state
-- `ttsSlice` - Text-to-speech state
-- `settingsSlice` - User preferences (includes `hasCompletedOnboarding`)
-- `emergencySlice` - Emergency handling
-- `navigationSlice` - Navigation state
-- `alertsSlice` - Alert management
+### Babel plugin order (MUST be this sequence)
 
-**Feature-level slices** (co-located with features):
-
-- `features/auth/store/authSlice.ts` - Auth async thunks (login, register, logout, loadStoredAuth)
-- `features/onboarding/store/onboardingSlice.ts` - Onboarding state (permissions, device pairing)
-
-**Redux store** (`src/app/store/index.ts`) combines app-level and feature-level slices using `configureStore`.
-
-**Typed hooks**:
-
-- `useAppSelector` - typed Redux selector
-- `useAppDispatch` - typed Redux dispatch (from `@app/store`)
-
-## Core Services
-
-- **BLEService**: Bluetooth device management (`src/core/native/BLEService.ts`)
-- **AIService**: AI obstacle detection (`src/core/native/AIService.ts`)
-- **TTSService**: Text-to-speech (`src/core/native/TTSService.ts`)
-- **AccessibilityEngine**: Centralized accessibility with VoiceQueue (priority-based), SpeechController (interruption handling), HapticCoordinator, FocusManager, EventPriorityMapper
-- **StorageService**: Persistent storage (`src/core/storage/StorageService.ts`)
-- **EventBus**: Priority-based event system (`src/core/events/EventBus.ts`)
-- **ErrorHandler**: Error boundaries (`src/core/error/ErrorHandler.ts`)
-
-## Navigation Stacks
-
-7 navigators in `src/app/navigation/`:
-
-| Navigator       | Location                          | Screens                                                                            |
-| --------------- | --------------------------------- | ---------------------------------------------------------------------------------- |
-| **Root**        | `AppNavigator.tsx`                | Splash, Auth, Onboarding, Main, Emergency, Modal, Calibration                      |
-| **Auth**        | `stacks/AuthNavigator.tsx`        | Login, Register, ForgotPassword                                                    |
-| **Onboarding**  | `stacks/OnboardingNavigator.tsx`  | Welcome, Permissions, DevicePairing, Complete                                      |
-| **Main Tab**    | `stacks/MainTabNavigator.tsx`     | HomeTab, NavigationTab, AlertsTab, DeviceTab, SettingsTab (each with nested stack) |
-| **Emergency**   | `stacks/EmergencyNavigator.tsx`   | EmergencyHome, CaregiverContacts, EmergencyHistory                                 |
-| **Modal**       | `stacks/ModalNavigator.tsx`       | Confirmation, Alert, BottomSheet                                                   |
-| **Calibration** | `stacks/CalibrationNavigator.tsx` | CalibrationStart, CalibrationInstructions, CalibrationComplete                     |
-
-**Entry point logic** (`AppNavigator.tsx:25-29`):
-
-- Not authenticated → `Auth`
-- Not completed onboarding → `Onboarding`
-- Otherwise → `Main`
-
-**Navigation types**: All param lists defined in `types/navigation.ts` with `RootStackParamList` as the global root.
-
-**Splash screen**: Used as initial route with `animation: 'none'` - handles app initialization before routing.
-
-## Design System
-
-12 accessible components in `src/shared/design-system/components/`:
-
-- Button, Card, Input, FormInput (with react-hook-form integration), Slider, Toggle, Modal, Loader, EmptyState, FAB, Alert, VoiceFeedbackBanner
-
-Theme: Dark-first with high contrast, 48px minimum touch targets, WCAG 2.1 AA target
-
-**Theme tokens** (`src/shared/design-system/theme/`):
-
-- `tokens.ts` - Colors, spacing, radius, typography
-- `semantic.ts` - Semantic color mappings (background, foreground, surface, border)
-
-## Git Workflow
-
-- Branch strategy: `main`, `develop`, `feature/*`, `fix/*`, `release/*`
-- Commit format: `<type>(<scope>): <description>` (Conventional Commits)
-- Pre-commit: Husky runs `lint-staged` on staged files
-
-## Testing
-
-Run specific test:
-
-```bash
-npm test -- --testPathPattern=bleSlice
+```
+@babel/plugin-transform-export-namespace-from → module-resolver → react-native-reanimated/plugin
 ```
 
-## Auth & Onboarding (Phase 5)
+---
 
-**Auth flows** (zod + react-hook-form):
+## Dev Auth Bypass (DEV only)
 
-- LoginScreen, RegisterScreen, ForgotPasswordScreen
-- Validation schemas in `features/auth/validators/`
-- `useFormValidation` hook handles form submission with accessibility announcements
-- Errors shown only after field interaction (touchedFields pattern)
+`src/features/auth/DevAuthBypass.ts` auto-authenticates a mock user and marks onboarding complete in `__DEV__` mode. Disable by setting `DEV_AUTH_BYPASS_ENABLED = false`.
 
-**Onboarding flows** (4-step wizard):
+In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled()` short-circuits to `'Main'` before checking real auth.
 
-- WelcomeScreen → PermissionsScreen → DevicePairingScreen → CompleteScreen
-- `usePermissions` hook handles Android PermissionsAndroid
-- `useOnboarding` hook manages navigation and state
-- Stores completion in StorageService via STORAGE_KEYS
+---
 
-**Storage keys** (from `core/storage`):
+## Dashboard & Dev Testing Harness (Phase 6–6.5)
 
-- ONBOARDING_COMPLETE, DEVICE_PAIRED, AUTH_TOKEN, USER_DATA
+### Architecture
 
-## Home Dashboard (Phase 6)
+`src/features/home/dashboard/`:
+- `middleware/` — `DashboardEventMiddleware` (EventBus → Redux bridge, initialized in `app/index.tsx` line 21)
+- `hooks/` — `useDashboard`, `useDashboardWidget`, `useObstacleHistory`, `useDeviceStatus`, `useAIStatus`
+- `widgets/` — BLEStatusWidget, AIStatusWidget, ObstacleDetectionCard, AIInstructionBanner, EmergencyFAB, QuickActions + QuickActionsPreset
+- Widgets support `compact` + full modes. They subscribe via `useAppSelector` to Redux and via `eventBus.subscribe` for real-time.
 
-**Dashboard architecture** (`src/features/home/dashboard/`):
+`src/features/home/dev/` — Dev testing harness (6-tab `DashboardDevPanel` rendered as a Modal in `HomeScreen.tsx:279`, only in `__DEV__`)
 
-- `types/` - WidgetStatus, DashboardState, DashboardConfig interfaces
-- `middleware/` - DashboardEventMiddleware connects EventBus to Redux
-- `hooks/` - useDashboard, useDashboardWidget, useObstacleHistory, useDeviceStatus, useAIStatus
-- `widgets/` - BLEStatusWidget, AIStatusWidget, ObstacleDetectionCard, AIInstructionBanner, EmergencyFAB, QuickActions
+### Console log prefixes for debugging
 
-**Widget pattern**:
+| Prefix | Source |
+|--------|--------|
+| `[DevPanel]` | DashboardDevPanel button presses |
+| `[DevSim]` | DevSimulationEngine operations |
+| `[EventBus#N]` | EventBus instance N (`instanceId` from counter — detects duplicates) |
+| `[DashboardMiddleware]` | Middleware init & handler invocations |
+| `[BLEWidget]` | BLEStatusWidget renders + selector execution |
+| `[AccessibilityEngine]` | Accessibility announcements |
+| `[StoreDebug]` | Store identity checks (`store === globalThis.__VISIONAID_STORE__`) |
+| `[TouchTest]` | Touch interaction diagnostics on Modal buttons |
+| `[HomeScreen]` | HomeScreen render tracking |
 
-- Each widget has `compact` and full modes
-- Widgets use Redux state via useAppSelector
-- Accessibility labels for screen reader support
-- Event subscriptions for real-time updates
+### ⚠️ UNRESOLVED: Simulation pipeline — touch interaction layer, not Redux
 
-**Dashboard widgets**:
+**Evolved diagnosis** (as of 2026-05-22): NONE of the simulation buttons in the dev panel respond — no `[DevPanel]` logs, no dispatches, no EventBus events. Force Redux Dispatch buttons also produce no widget re-render even though `store.getState()` confirms state changed. The root cause is in the **touch/interaction layer**, NOT the Redux→React rendering layer.
 
-- `BLEStatusWidget` - signal bars, battery, connect/disconnect
-- `AIStatusWidget` - detection count, obstacle preview, start/stop
-- `ObstacleDetectionCard` - severity (danger/caution/safe), distance, direction, voice instruction
-- `AIInstructionBanner` - auto-dismiss, replay, accessibility announcements
-- `EmergencyFAB` - countdown animation, cancel, position prop
-- `QuickActions` - grid/row/stack layouts with preset actions
+**What works**: The standalone orange `🧪 TEST BUTTON` rendered in `HomeScreen.tsx:113-134` fires `[TouchTest]` on every press, proving touch works at the app level. But inside the Modal, nothing fires.
 
-**Realtime rendering**:
+**Current hypothesis**: Touch events swallowed by React Native Modal's dialog layer on Android, blocked by transparent overlay, or prevented by `GestureHandlerRootView` not propagating events into Modal's native window.
 
-- EventBus subscriptions trigger accessibility announcements
-- Redux updates from DashboardEventMiddleware on BLE/AI/emergency events
-- Pull-to-refresh with RefreshControl
+**Diagnostic trace map** (read console logs top-to-bottom):
+1. Test button in HomeScreen fires? → touch works at app level
+2. `onTouchStart` fires on Modal header/close button → raw touch reaches Pressable
+3. `onPressIn` fires → Pressable detects gesture
+4. `onPress` fires → end-to-end touch works
 
-## Performance Targets
+**Key files**: `DashboardDevPanel.tsx` (Modal with `transparent={false}`, `pointerEvents="auto"`, `nestedScrollEnabled={true}`, diagnostic `onTouchStart`/`onPressIn` on first 3 buttons). `HomeScreen.tsx:113-134` (standalone test button).
 
-- BLE latency: <100ms
-- TTS delay: <150ms
+---
 
-## Development Tips
+## Framework Quirks & Gotchas
 
-- **Mock services**: MOCK_BLE_DEVICE and MOCK_AI_DETECTION default to `true` in development flavor, `false` in production
-- **CI linting**: Run `npm run lint:ci` (max-warnings=0) before committing - pre-commit hook enforces this
-- **Reset Metro**: Use `npm run start:reset` if bundler has cache issues
-- **No backend API**: All data is local/mock (early phase)
-- **Env imports**: Use relative paths (`../../env`) not `@env` alias (alias was removed)
-- **Build issues**: Path alias errors - verify babel-plugin-module-resolver in babel.config.js matches metro.config.js and tsconfig.json
-- **Product flavor naming**: Use `stagingEnv` not `staging` (was renamed to avoid BuildType collision)
-- **Babel plugin order**: export-namespace-from → module-resolver → reanimated (in babel.config.js)
-- **Form validation UX**: Errors only show after field is touched/blurred (touchedFields pattern)
-- **Single NavigationContainer**: App-level container only in `app/index.tsx` - do NOT add nested containers in navigators
-- **SplashScreen**: Always rendered first with no animation - handles auth/onboarding checks before routing
+- **Mock-only backend**: BLE/AI services are stubs (`MOCK_BLE_DEVICE`, `MOCK_AI_DETECTION` default `true` in `src/env.ts`).
+- **Env reads from `process.env`** at runtime with fallback defaults via `src/env.ts:21-29`. NOT react-native-dotenv.
+- **Form validation** (Phase 5): Zod + react-hook-form. Errors render only after field interaction (touchedFields pattern).
+- **AccessibilityEngine** + **DashboardEventMiddleware** must be `initialize()`'d at startup (done in `app/index.tsx:19-22` for `__DEV__`, needs call for production).
+- **Only 3 test files** exist: `__tests__/accessibility/VoiceQueue.test.ts`, `__tests__/accessibility/SpeechController.test.ts`, `__tests__/App.test.tsx`. No tests for dashboard widgets or dev harness.
+- **~46 lint warnings** (unused imports, `any` types). Pre-commit rejects them (`--max-warnings=0`).
+- **`@tanstack/react-query`** in deps but minimally used. **`react-native-gesture-handler`** wraps app root.
+- **`LogBox.ignoreLogs(['Non-serializable values...'])`** suppressed in `app/index.tsx:34`.
+- **`commit-msg` hook** enforces conventional commits: `<type>(<scope>): <description>`. Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert.
 
-## Known Issues
+## Additional Debugging Hooks
 
-- ~46 lint warnings remaining (mostly unused imports and `any` types)
-- JDK 17+ required for Android builds (not installed in current environment)
+- **`__REDUX_STORE_ID__`**: Every store instance gets a random ID + timestamp at `src/app/store/index.ts:33`. Logged by all major consumers.
+- **`globalThis.__VISIONAID_STORE__`** : Exposed in `__DEV__` so any module can verify it imports the same store instance the Provider uses.
+- **Force Redux Dispatch buttons** in Dev Panel → Simulation tab → "Force Redux Dispatch" section bypass EventBus to test Redux→UI isolation.
+- **Stress test mode** in Dev Panel → Stress tab: emits random BLE/AI events every 100ms for configurable duration.

@@ -22,6 +22,15 @@ if (__DEV__) {
   logger.debug('Dashboard event middleware initialized');
 }
 
+// [DIAGNOSTIC] Store identity at Provider site
+const providerStoreId = (store as any).__REDUX_STORE_ID__;
+const globalStore = (globalThis as any).__VISIONAID_STORE__;
+console.log(`[StoreDebug] 📦 Provider module — store ID: ${providerStoreId}`);
+console.log(`[StoreDebug]   store === globalThis.__VISIONAID_STORE__: ${store === globalStore}`);
+console.log(`[StoreDebug]   store.dispatch type: ${typeof store.dispatch}`);
+console.log(`[StoreDebug]   store.getState type: ${typeof store.getState}`);
+console.log(`[StoreDebug]   store.subscribe type: ${typeof store.subscribe}`);
+
 LogBox.ignoreLogs(['Non-serializable values were found in the navigation state']);
 
 const styles = StyleSheet.create({
@@ -76,6 +85,12 @@ const NavigationWrapper: React.FC = () => {
 
 const App: React.FC = () => {
   logger.debug('App initializing', { environment: env.ENVIRONMENT });
+
+  const appStoreId = (store as any).__REDUX_STORE_ID__;
+  const appGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+  console.log(`[StoreDebug] 🏁 App render — store ID: ${appStoreId}`);
+  console.log(`[StoreDebug]   store === globalThis.__VISIONAID_STORE__: ${store === appGlobalStore}`);
+  console.log(`[StoreDebug]   Provider receives store ID: ${appStoreId}`);
 
   return (
     <GestureHandlerRootView style={styles.root}>

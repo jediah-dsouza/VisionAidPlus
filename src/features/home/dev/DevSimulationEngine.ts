@@ -198,6 +198,11 @@ class DevSimulationEngine {
   // ========================================================================
   simulateBLEConnect(): void {
     console.log('[DevSim] simulateBLEConnect() called');
+    // [DIAGNOSTIC] Store identity in simulation
+    const simStoreId = (store as any).__REDUX_STORE_ID__;
+    const simGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+    console.log(`[DevSim] 🔑 Store ID: ${simStoreId}`);
+    console.log(`[DevSim]   store === globalThis.__VISIONAID_STORE__: ${store === simGlobalStore}`);
     this.simulate(
       EVENTS.BLE_DEVICE_CONNECTED,
       { deviceId: 'vision-aid-001', deviceName: 'VisionAid Pro', rssi: -45 },

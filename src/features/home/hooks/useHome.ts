@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useAppSelector, useAppDispatch } from '@app/store';
+import { useAppSelector, useAppDispatch, store } from '@app/store';
 import { eventBus, EVENTS } from '@core/events/EventBus';
 import { accessibilityEngine } from '@core/accessibility';
 import { aiActions } from '@app/store/slices/aiSlice';
@@ -8,6 +8,12 @@ import { bleService } from '@core/native/BLEService';
 import { aiService } from '@core/native/AIService';
 
 export const useHome = () => {
+  // [DIAGNOSTIC] Store identity from hook context (one-time)
+  const useHomeStoreId = (store as any).__REDUX_STORE_ID__;
+  const useHomeGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+  console.log(`[useHome] 🔑 Store ID: ${useHomeStoreId}`);
+  console.log(`[useHome]   store === globalThis.__VISIONAID_STORE__: ${store === useHomeGlobalStore}`);
+
   const dispatch = useAppDispatch();
 
   const bleState = useAppSelector(state => state.ble);

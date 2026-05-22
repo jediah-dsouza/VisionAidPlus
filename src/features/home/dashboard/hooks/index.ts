@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAppSelector, useAppDispatch } from '@app/store';
+import { useAppSelector, useAppDispatch, store } from '@app/store';
 import { eventBus, EVENTS } from '@core/events/EventBus';
 import { accessibilityEngine } from '@core/accessibility';
 import { aiActions } from '@app/store/slices/aiSlice';
@@ -24,6 +24,12 @@ interface UseDashboardReturn {
 
 export const useDashboard = (options: UseDashboardOptions = {}): UseDashboardReturn => {
   const { config = {}, enableMiddleware = true } = options;
+
+  // [DIAGNOSTIC] Store identity from dashboard hooks
+  const dhStoreId = (store as any).__REDUX_STORE_ID__;
+  const dhGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+  console.log(`[DashboardHooks] 🔑 Store ID: ${dhStoreId}`);
+  console.log(`[DashboardHooks]   store === globalThis.__VISIONAID_STORE__: ${store === dhGlobalStore}`);
 
   const dispatch = useAppDispatch();
   const subscriptionsRef = useRef<Map<string, SubscriptionCleanup>>(new Map());

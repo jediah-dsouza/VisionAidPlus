@@ -157,6 +157,10 @@ const createSimulationButtons = (): SimulationButton[] => [
 // ============================================================================
 const SimulationSection: React.FC = () => {
   const buttons = createSimulationButtons();
+  console.log(`[SimulationSection] 🔄 RENDER - ${buttons.length} buttons in grid`);
+  console.log(`[SimulationSection]   button IDs:`, buttons.map(b => b.id).join(', '));
+  console.log(`[SimulationSection]   first button onPress type:`, typeof buttons[0]?.onPress);
+  console.log(`[SimulationSection]   first button disabled:`, buttons[0]?.disabled);
 
   const getButtonStyle = (variant: SimulationButton['variant']) => {
     switch (variant) {
@@ -187,21 +191,33 @@ const SimulationSection: React.FC = () => {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>🎮 Simulation Controls</Text>
-      <View style={styles.buttonGrid}>
-        {buttons.map(button => (
-          <Pressable
-            key={button.id}
-            style={[styles.simulationButton, getButtonStyle(button.variant)]}
-            onPress={button.onPress}
-            disabled={button.disabled}
-            accessibilityRole="button"
-            accessibilityLabel={button.label}>
-            <Text style={styles.buttonIcon}>{button.icon}</Text>
-            <Text style={[styles.buttonLabel, { color: getTextColor(button.variant) }]}>
-              {button.label}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.buttonGrid} pointerEvents="auto">
+        {buttons.map((button, index) => {
+          const isFirstThree = index < 3;
+          return (
+            <Pressable
+              key={button.id}
+              style={[
+                styles.simulationButton,
+                getButtonStyle(button.variant),
+                // [DIAGNOSTIC] Temporary visual cue: add red border to first 3 buttons
+                isFirstThree && { borderWidth: 2, borderColor: '#FF0000' },
+              ]}
+              onPress={button.onPress}
+              onPressIn={isFirstThree ? () => console.log(`[TouchTest] onPressIn: ${button.id}`) : undefined}
+              onTouchStart={isFirstThree ? () => {
+                console.log(`[TouchTest] 🔵 onTouchStart FIRED: ${button.id}`);
+              } : undefined}
+              disabled={button.disabled}
+              accessibilityRole="button"
+              accessibilityLabel={button.label}>
+              <Text style={styles.buttonIcon}>{button.icon}</Text>
+              <Text style={[styles.buttonLabel, { color: getTextColor(button.variant) }]}>
+                {button.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.customSimulations}>
@@ -244,9 +260,16 @@ const SimulationSection: React.FC = () => {
             style={[styles.debugButton, { backgroundColor: semanticTokens.colors.success.muted }]}
             onPress={() => {
               console.log('[DevPanel] 🔧 FORCE DISPATCH: BLE Connected');
+              const beforeId = (store as any).__REDUX_STORE_ID__;
+              const globalCheck = store === (globalThis as any).__VISIONAID_STORE__;
+              console.log(`[DevPanel]   dispatch store ID: ${beforeId}`);
+              console.log(`[DevPanel]   store === globalThis.__VISIONAID_STORE__: ${globalCheck}`);
+              console.log(`[DevPanel]   subscribers before dispatch:`, (store as any).getState ? 'store.getState exists' : 'store.getState MISSING');
               store.dispatch(bleActions.setStatus('connected'));
               store.dispatch(bleActions.setConnectedDevice('force-test-device'));
               console.log('[DevPanel] State after dispatch:', store.getState().ble);
+              const afterSubCount = (store as any).listeners ? (store as any).listeners.size : 'unknown (no listeners property)';
+              console.log(`[DevPanel]   subscriber count estimate: ${afterSubCount}`);
             }}
             accessibilityLabel="Force BLE Connected">
             <Text style={styles.debugButtonText}>Force BLE Connected</Text>
@@ -312,6 +335,14 @@ interface DashboardDevPanelProps {
 }
 
 export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVisible = true }) => {
+  // [DIAGNOSTIC] Store identity tracking
+  const devPanelStoreId = (store as any).__REDUX_STORE_ID__;
+  const devPanelGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+  console.log('[DevPanel] 🔑 Store identity check');
+  console.log(`[DevPanel]   store.__REDUX_STORE_ID__: ${devPanelStoreId}`);
+  console.log(`[DevPanel]   store === globalThis.__VISIONAID_STORE__: ${store === devPanelGlobalStore}`);
+  console.log(`[DevPanel]   store.dispatch === store.dispatch (self): ${store.dispatch === store.dispatch}`);
+
   const [isVisible, setIsVisible] = useState(initialVisible);
   const [activeTab, setActiveTab] = useState<DevPanelTab>('simulation');
   const [events, setEvents] = useState<SimulationEvent[]>([]);
@@ -364,23 +395,40 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
     );
   }
 
+  console.log(`[DevPanel] 📋 MODAL RENDER - isVisible: ${isVisible}, activeTab: ${activeTab}`);
+  console.log(`[DevPanel]   rendering SimulationSection? ${activeTab === 'simulation'}`);
+
   return (
     <Modal
       visible={isVisible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={() => setIsVisible(false)}>
-      <View style={styles.container}>
+      transparent={false}
+      onRequestClose={() => {
+        console.log('[TouchTest] 📱 onRequestClose fired');
+        setIsVisible(false);
+      }}
+      onShow={() => console.log('[TouchTest] 📱 Modal onShow fired - Modal is VISIBLE')}
+      onOrientationChange={() => console.log('[TouchTest] 📱 Modal orientation change')}>
+      <View style={styles.container} pointerEvents="auto">
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🧪 Dashboard Dev Panel</Text>
+          <Pressable
+            onPress={() => console.log('[TouchTest] 🎯 HEADER TITLE PRESSED - touch works in Modal')}
+            onTouchStart={() => console.log('[TouchTest] 🔵 Header title onTouchStart')}>
+            <Text style={styles.headerTitle}>🧪 Dashboard Dev Panel</Text>
+          </Pressable>
           <View style={styles.headerActions}>
             <View style={styles.devBadge}>
               <Text style={styles.devBadgeText}>DEV ONLY</Text>
             </View>
             <Pressable
               style={styles.closeButton}
-              onPress={() => setIsVisible(false)}
+              onPress={() => {
+                console.log('[TouchTest] ✕ CLOSE BUTTON PRESSED');
+                setIsVisible(false);
+              }}
+              onTouchStart={() => console.log('[TouchTest] 🔵 Close button onTouchStart')}
               accessibilityRole="button"
               accessibilityLabel="Close dev panel">
               <Text style={styles.closeButtonText}>✕</Text>
@@ -389,13 +437,17 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
         </View>
 
         {/* Tab Bar */}
-        <View style={styles.tabBar}>
+        <View style={styles.tabBar} pointerEvents="auto">
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {tabs.map(tab => (
               <Pressable
                 key={tab.key}
                 style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => {
+                  console.log(`[TouchTest] 🎯 TAB PRESSED: ${tab.key} (was: ${activeTab})`);
+                  setActiveTab(tab.key);
+                }}
+                onTouchStart={() => console.log(`[TouchTest] 🔵 Tab onTouchStart: ${tab.key}`)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: activeTab === tab.key }}>
                 <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
@@ -407,7 +459,11 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
         </View>
 
         {/* Content */}
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          pointerEvents="auto"
+          nestedScrollEnabled={true}>
           {activeTab === 'simulation' && <SimulationSection />}
           {activeTab === 'console' && <DevEventConsole events={events} onClear={handleClearLog} />}
           {activeTab === 'validation' && (

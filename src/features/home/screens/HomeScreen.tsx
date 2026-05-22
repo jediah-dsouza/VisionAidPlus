@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Button as RNButton,
+  Alert as RNAlert,
+} from 'react-native';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Card, Button, Loader, Alert } from '@shared/design-system/components';
 import { useHomeDashboard } from '../hooks/useHome';
@@ -29,6 +37,14 @@ export const HomeScreen: React.FC = () => {
     handleStartDetection,
     handleStopDetection,
   } = useHomeDashboard();
+
+  // [DIAGNOSTIC] Render tracking
+  console.log('[HomeScreen] 🔄 RENDER');
+  console.log('[HomeScreen]   summary.deviceConnected:', summary.deviceConnected);
+  console.log('[HomeScreen]   summary.detectionCount:', summary.detectionCount);
+  console.log('[HomeScreen]   isLoading:', isLoading);
+  console.log('[HomeScreen]   error:', error);
+  console.log('[HomeScreen]   visibleObstacles.length:', obstacles.length);
 
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedObstacles, setDismissedObstacles] = useState<Set<string>>(new Set());
@@ -89,8 +105,33 @@ export const HomeScreen: React.FC = () => {
     );
   }
 
+  // [DIAGNOSTIC] Test button hit counter
+  const [testButtonClicks, setTestButtonClicks] = useState(0);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {__DEV__ && (
+        <View
+          style={{
+            backgroundColor: '#FF6600',
+            padding: 10,
+            margin: 4,
+            borderRadius: 8,
+            zIndex: 9999,
+            elevation: 9999,
+          }}>
+          <RNButton
+            title={`🧪 TEST BUTTON (${testButtonClicks})`}
+            color="#FFFFFF"
+            onPress={() => {
+              const newCount = testButtonClicks + 1;
+              setTestButtonClicks(newCount);
+              console.log(`[TouchTest] 🧪 TEST BUTTON PRESSED! count=${newCount}`);
+              console.log(`[TouchTest]   This confirms touch events work in HomeScreen`);
+            }}
+          />
+        </View>
+      )}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}

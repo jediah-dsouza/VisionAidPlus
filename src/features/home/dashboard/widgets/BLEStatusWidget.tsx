@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAppSelector } from '@app/store';
+import { useAppSelector, store } from '@app/store';
 import { Card, Button } from '@shared/design-system/components';
 import { semanticTokens, tokens } from '@shared/design-system/theme';
 import { bleService } from '@core/native/BLEService';
@@ -51,8 +51,31 @@ export const BLEStatusWidget: React.FC<BLEStatusWidgetProps> = ({
   onDisconnect,
   compact = false,
 }) => {
+  // [DIAGNOSTIC] Store identity
+  const bleWidgetStoreId = (store as any).__REDUX_STORE_ID__;
+  const bleWidgetGlobalStore = (globalThis as any).__VISIONAID_STORE__;
   console.log('[BLEWidget] 🔄 RENDER - Widget mounting/updating');
   console.log('[BLEWidget] Props:', { onConnect: !!onConnect, onDisconnect: !!onDisconnect, compact });
+  console.log(`[BLEWidget] 🔑 Store ID: ${bleWidgetStoreId}`);
+  console.log(`[BLEWidget]   store === globalThis.__VISIONAID_STORE__: ${store === bleWidgetGlobalStore}`);
+  console.log(`[BLEWidget]   store.subscribe: ${typeof store.subscribe}`);
+  console.log(`[BLEWidget]   useAppSelector function ref: ${useAppSelector.name || 'anonymous'}`);
+
+  // [DIAGNOSTIC] Direct store subscription to detect subscriber firing
+  useEffect(() => {
+    console.log('[BLEWidget] 📡 Installing direct store.subscribe() listener');
+    const unsubscribe = store.subscribe(() => {
+      const currentState = store.getState();
+      console.log('[BLEWidget] 🔔 STORE SUBSCRIBER FIRED');
+      console.log('[BLEWidget]   ble.status:', currentState.ble.status);
+      console.log('[BLEWidget]   ble.connectedDeviceId:', currentState.ble.connectedDeviceId);
+      console.log('[BLEWidget]   store.getState().ble === state.ble via selector:', 'N/A (selector not called)');
+    });
+    return () => {
+      console.log('[BLEWidget] 🧹 Cleaning up store.subscribe() listener');
+      unsubscribe();
+    };
+  }, []);
 
   const { status, connectedDeviceId, signalStrength, batteryLevel, devices } = useAppSelector(
     state => {

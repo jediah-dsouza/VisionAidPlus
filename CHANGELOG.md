@@ -313,6 +313,109 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 
 ### Fixed
 
+#### AGENTS.md — Compacted and Focused (2026-05-22)
+
+- Rewrote from 288 lines to 130 lines by removing obvious info (file tree, full env table, navigator catalog, design system list, performance targets, phase prose)
+- Preserved all commands, build variant quirks (`stagingEnv` naming), path alias rules (`@env` removed), Babel plugin order, single NavigationContainer rule, Redux two-tier layout, and Dev Auth Bypass mechanism
+- Added **UNRESOLVED simulation pipeline UI rendering issue** with console trace signatures and top 4 investigation leads
+- Added console log prefix reference table (`[DevPanel]`, `[DevSim]`, `[EventBus#N]`, `[DashboardMiddleware]`, `[BLEWidget]`)
+- Added framework quirks section: mock-only backend, `process.env`-based env, touchedFields pattern, AccessibilityEngine init requirement, test coverage gaps
+
+#### Redux Subscription Integrity Diagnostics (2026-05-22)
+
+**Instrumentation added across 9 files — no logic changes:**
+
+- `src/app/store/index.ts` — Added unique `store.__REDUX_STORE_ID__` (random ID + timestamp), exposed to `globalThis.__VISIONAID_STORE__` in `__DEV__` for cross-module reference comparison
+- `src/app/index.tsx` — Module-level + App render store identity checks against global reference
+- `src/features/home/dashboard/widgets/BLEStatusWidget.tsx` — Added direct `store.subscribe()` listener logging every Redux state change with `ble.status`; logged store identity and subscription method references
+- `src/features/home/screens/HomeScreen.tsx` — Added render log with `summary.deviceConnected`, `detectionCount`, `isLoading`, `error` on every render
+- `src/features/home/dev/DashboardDevPanel.tsx` — Logged store identity at component mount; enhanced "Force BLE Connected" button with: store ID logging, `store === globalThis.__VISIONAID_STORE__` comparison, subscriber count inspection, pre/post dispatch state logging
+- `src/features/home/dashboard/middleware/index.ts` — Logged store identity and dispatch/subscribe method presence at initialization
+- `src/features/home/dev/DevSimulationEngine.ts` — Logged store identity in `simulateBLEConnect()`
+- `src/features/home/hooks/useHome.ts` — Added `store` import and identity check
+- `src/features/home/dashboard/hooks/index.ts` — Added `store` import and identity check
+
+**Diagnosis changed**: Force Redux Dispatch buttons also produce no widget re-render, even though `store.getState()` confirms state changed. Rule out EventBus and middleware as the root cause. Bug is in the Redux→React rendering layer.
+
+#### AGENTS.md — Root Rewrite (2026-05-22)
+
+- Rewrote root `AGENTS.md` from 248 to 142 lines, replacing verbose Engineering Guide with compact Agent Guide matching VisionAidPlus/AGENTS.md structure
+- Removed: full file tree, complete env variable table, core services catalog, Redux slice list, design system component index, performance targets, phase prose
+- Added: build variant quirks (`stagingEnv` naming), Babel plugin order, Redux two-tier layout, single NavigationContainer rule, Dev Auth Bypass description, `@env` removed caveat, env.ts `process.env`-based reading (NOT react-native-dotenv)
+- Added: AccessibilityEngine + DashboardEventMiddleware `__DEV__`-only init note (needs production call), extra console log prefixes (`[StoreDebug]`, `[TouchTest]`, `[HomeScreen]`)
+- Added: framework quirks section (`@tanstack/react-query`, `react-native-gesture-handler`, `LogBox.ignoreLogs`, `commit-msg` hook enforcement)
+
+#### AGENTS.md — Evolved Diagnosis in VisionAidPlus/ (2026-05-22)
+
+- Updated `VisionAidPlus/AGENTS.md` UNRESOLVED section: replaced outdated "Redux→React rendering layer" hypothesis with evolved **touch interaction layer** diagnosis
+- Added: diagnostic trace map (test button → `onTouchStart` → `onPressIn` → `onPress`), current hypothesis (Modal dialog swallowing touch), key files with instrumentation
+- Added: `[StoreDebug]`, `[TouchTest]`, `[HomeScreen]` to console log prefix table
+- Added: framework quirks (react-query, gesture-handler, LogBox, commit-msg), Additional Debugging Hooks section (store identity, force dispatch, stress test)
+- Fixed: DashboardDevPanel line reference from outdated 238 to correct 279
+
+#### Touch Interaction Diagnostics (2026-05-22)
+
+**Critical discovery**: NONE of the simulation buttons respond — no `[DevPanel]` logs, no Redux dispatches, no EventBus events. `onPress` handlers are never entered. Investigation shifted from Redux rendering to touch/interaction layer.
+
+**Instrumentation added across 2 files — no logic changes:**
+
+- `src/features/home/screens/HomeScreen.tsx` — Added orange standalone `RNButton` test button with click counter, rendered directly in HomeScreen above ScrollView, bypassing Modal entirely; logs `[TouchTest] 🧪 TEST BUTTON PRESSED!` on every press
+- `src/features/home/dev/DashboardDevPanel.tsx` — Comprehensive touch diagnostics:
+  - Modal lifecycle logging: `onShow`, `onRequestClose`, `onOrientationChange` all emit `[TouchTest]` prefixed console logs
+  - Modal visibility state logged on every render (`[DevPanel] 📋 MODAL RENDER`)
+  - Header title wrapped in `Pressable` with `onPress` + `onTouchStart` logs
+  - Close button `onPress` + `onTouchStart` logs
+  - Tab bar: every tab `onPress` logs previous/current tab; `onTouchStart` logs
+  - SimulationSection: render confirmation log with button count, IDs, first button `onPress` type and disabled state
+  - First 3 simulation buttons: visual red border cue, `onPressIn` handler, `onTouchStart` handler
+  - Explicit `pointerEvents="auto"` on container, tabBar, buttonGrid, content ScrollView
+  - `nestedScrollEnabled={true}` on content ScrollView
+  - Modal `transparent={false}` explicitly set
+  - `onShow` handler confirms Modal is visible
+
+**Expected diagnostic trace map** (reading console output from top to bottom):
+1. Test button in HomeScreen fires? → Touch system works at app level (if not, everything is broken)
+2. Header title / close button fire? → Modal receives touches in header area
+3. Tab press fires? → Touch works in Modal content area
+4. `onTouchStart` fires? → Raw touch events reach the Pressable
+5. `onPressIn` fires? → Pressable detects the press gesture
+6. `onPress` fires? → Everything end-to-end
+
+**Current hypothesis**: Touch events are either being swallowed by the React Native Modal's dialog layer on Android, blocked by a transparent overlay, or prevented by `GestureHandlerRootView` not propagating events into the Modal's native window.
+
+#### Simulation Pipeline Debugging (UNRESOLVED — DIAGNOSIS EVOLVED)
+
+**Previous diagnosis**: Simulation buttons trigger partial pipeline execution (EventBus publish, Redux dispatch, middleware handlers all execute successfully per console logs), but widgets do not visually update. This suggested React component subscription or rendering layer issue.
+
+**Pipeline Trace (Working):**
+- [DevPanel] Button press logged
+- [DevSim] simulateBLEConnect() executes
+- [EventBus#N] PUBLISH logs show handlers found
+- [DashboardMiddleware] Handler receives payload, dispatches Redux actions
+- [DevSim] Redux state shows ble.status = 'connected'
+
+**Pipeline Trace (Broken):**
+- BLEStatusWidget does not re-render
+- Widget selector logs do not fire on state change
+- UI remains showing disconnected state
+
+**Debugging Instrumentation Added:**
+
+1. Button-level tracing: Console logs on every onPress handler
+2. Simulation engine tracing: Function entry/exit, payload, Redux state before/after
+3. EventBus instance tracking: Unique instance IDs to detect duplicates
+4. EventBus subscription tracing: Handler counts, all registered subscriptions on publish
+5. Middleware tracing: Initialization, subscription registration, handler invocation
+6. Widget tracing: Component renders, selector execution, received state values
+7. Force Redux Dispatch buttons: Bypass EventBus to test Redux-to-UI rendering directly
+
+**Files with Debug Logs:**
+- `src/core/events/EventBus.ts` - Instance IDs, subscribe/publish logging
+- `src/features/home/dev/DevSimulationEngine.ts` - Pipeline trace logging
+- `src/features/home/dev/DashboardDevPanel.tsx` - Button press logging, force dispatch
+- `src/features/home/dashboard/middleware/index.ts` - Handler invocation logging
+- `src/features/home/dashboard/widgets/BLEStatusWidget.tsx` - Render and selector logging
+
 #### Dashboard Dev Testing Pipeline Fixes
 
 **Accessibility Engine Initialization:**

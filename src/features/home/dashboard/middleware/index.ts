@@ -42,7 +42,14 @@ class DashboardEventMiddleware {
       return;
     }
 
+    // [DIAGNOSTIC] Store identity at middleware init
+    const mwStoreId = (store as any).__REDUX_STORE_ID__;
+    const mwGlobalStore = (globalThis as any).__VISIONAID_STORE__;
     console.log('[DashboardMiddleware] 🌟 Initializing Dashboard Event Middleware');
+    console.log(`[DashboardMiddleware] 🔑 Store ID: ${mwStoreId}`);
+    console.log(`[DashboardMiddleware]   store === globalThis.__VISIONAID_STORE__: ${store === mwGlobalStore}`);
+    console.log(`[DashboardMiddleware]   store.dispatch: ${typeof store.dispatch}`);
+    console.log(`[DashboardMiddleware]   store.subscribe: ${typeof store.subscribe}`);
     console.log('[DashboardMiddleware] Current EventBus subscriptions before init:', Array.from(eventBus['subscriptions'].keys()));
 
     this.subscribeToBLEEvents();
