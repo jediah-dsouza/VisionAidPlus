@@ -8,6 +8,7 @@ import { emergencySlice } from './slices/emergencySlice';
 import { navigationSlice } from './slices/navigationSlice';
 import { liveNavigationSlice } from './slices/liveNavigationSlice';
 import { alertsSlice } from './slices/alertsSlice';
+import { voiceSlice } from './slices/voiceSlice';
 import { authReducer } from '@features/auth';
 import { onboardingReducer } from '@features/onboarding';
 
@@ -23,6 +24,7 @@ export const store = configureStore({
     navigation: navigationSlice.reducer,
     liveNavigation: liveNavigationSlice.reducer,
     alerts: alertsSlice.reducer,
+    voice: voiceSlice.reducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

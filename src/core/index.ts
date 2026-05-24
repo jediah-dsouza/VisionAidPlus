@@ -67,6 +67,42 @@ export type {
 } from './emergency';
 
 export {
+  SpeechPriorityEngine,
+  SpeechQueueManager,
+  SpeechLifecycleManager,
+  InterruptionCoordinator,
+  SpeechDeduplicationEngine,
+  AccessibilityPacingController,
+  TTSIntegrationLayer,
+  CommandHistoryRegistry,
+  PushToTalkLayer,
+  WaveformPipeline,
+  HapticSynchronizer,
+  VoiceMetricsCollector,
+  VOICE_EVENTS,
+  subscribeToSpeechLifecycle,
+  subscribeToVoiceCommandEvents,
+  DEFAULT_VOICE_CONFIG,
+  PRIORITY_ORDER,
+  PRIORITY_WEIGHTS,
+} from './voice-assistant';
+export type {
+  SpeechMessage,
+  SpeechQueueItem,
+  VoicePriority,
+  VoiceCategory,
+  VoiceLifecycleState,
+  PlaybackState,
+  VoiceSource,
+  VoiceCommand,
+  WaveformFrame,
+  WaveformSegment,
+  PushToTalkState,
+  VoiceMetrics,
+  VoiceAssistantConfig,
+} from './voice-assistant';
+
+export {
   obstacleRegistry,
   obstacleLifecycleManager,
   obstaclePrioritizationEngine,
