@@ -72,10 +72,12 @@ class EventBus {
     return () => {
       const subs = this.subscriptions.get(event);
       if (subs) {
-        this.subscriptions.set(
-          event,
-          subs.filter(s => s.id !== id),
-        );
+        const remaining = subs.filter(s => s.id !== id);
+        if (remaining.length === 0) {
+          this.subscriptions.delete(event);
+        } else {
+          this.subscriptions.set(event, remaining);
+        }
         console.log(`[EventBus#${this.instanceId}] UNSUBSCRIBED: ${event}`);
       }
     };

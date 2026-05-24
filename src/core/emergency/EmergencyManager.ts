@@ -48,6 +48,8 @@ export class EmergencyManager {
   private destroyed = false;
   private recoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private stateMachineCleanup: (() => void) | null = null;
+  private countdownCleanup: (() => void) | null = null;
+  private eventPriorityCleanup: (() => void) | null = null;
 
   constructor(config: Partial<EmergencyManagerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -64,7 +66,7 @@ export class EmergencyManager {
       },
     });
 
-    emergencyCountdownManager.addListener({
+    this.countdownCleanup = emergencyCountdownManager.addListener({
       onTick: (remaining: number) => {
         emergencyEventPriorityManager.publish(EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_TICK, {
           remaining,
@@ -88,7 +90,7 @@ export class EmergencyManager {
       },
     });
 
-    emergencyEventPriorityManager.subscribeToEmergencyEvents();
+    this.eventPriorityCleanup = emergencyEventPriorityManager.subscribeToEmergencyEvents();
 
     this.initialized = true;
     logger.info('[EmergencyManager] Initialized');
@@ -119,14 +121,15 @@ export class EmergencyManager {
       duration: 0,
     };
 
+    const started = emergencyCountdownManager.start(duration);
+    if (!started) return false;
+
     emergencyEventPriorityManager.publish(EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_STARTED, {
       duration: duration ?? 5,
       startedAt: this.currentSession.startedAt,
     });
 
-    eventBus.publish(EVENTS.EMERGENCY_TRIGGERED, { triggeredAt: this.currentSession.startedAt }, 'critical');
-
-    return emergencyCountdownManager.start(duration);
+    return true;
   }
 
   private onEmergencyTriggered(): void {
@@ -194,6 +197,15 @@ export class EmergencyManager {
   cancelEmergency(reason?: string): boolean {
     if (this.destroyed) return false;
 
+    const cancelled = emergencyCountdownManager.cancel() || emergencyStateMachine.send('CANCEL_EMERGENCY');
+
+    if (!cancelled) return false;
+
+    if (this.currentSession) {
+      this.currentSession.status = 'cancelled';
+      this.currentSession.cancelledAt = Date.now();
+    }
+
     emergencyEventPriorityManager.publish(EMERGENCY_EVENTS.EMERGENCY_CANCELLED, {
       cancelledAt: Date.now(),
       reason,
@@ -201,20 +213,13 @@ export class EmergencyManager {
 
     eventBus.publish(EVENTS.EMERGENCY_CANCELLED, { cancelledAt: Date.now(), reason }, 'high');
 
-    const cancelled = emergencyCountdownManager.cancel() || emergencyStateMachine.send('CANCEL_EMERGENCY');
-
-    if (this.currentSession) {
-      this.currentSession.status = 'cancelled';
-      this.currentSession.cancelledAt = Date.now();
-    }
-
     emergencySMSPipeline.cancelPending();
     accessibilityEngine.exitEmergencyMode();
     accessibilityEngine.announce('Emergency cancelled', 'high', true);
 
     this.scheduleRecovery();
 
-    return cancelled;
+    return true;
   }
 
   resolveEmergency(): boolean {
@@ -342,14 +347,17 @@ export class EmergencyManager {
       this.stateMachineCleanup = null;
     }
 
-    emergencyStateMachine.destroy();
-    emergencyCountdownManager.destroy();
-    emergencyEventPriorityManager.destroy();
-    emergencyGPSPipeline.destroy();
-    emergencySMSPipeline.destroy();
-    emergencyContactManager.destroy();
+    if (this.countdownCleanup) {
+      this.countdownCleanup();
+      this.countdownCleanup = null;
+    }
 
-    this.currentSession = null;
+    if (this.eventPriorityCleanup) {
+      this.eventPriorityCleanup();
+      this.eventPriorityCleanup = null;
+    }
+
+    this.reset();
     logger.info('[EmergencyManager] Destroyed');
   }
 }
