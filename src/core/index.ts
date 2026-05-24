@@ -8,7 +8,7 @@ export { bleService } from './native/BLEService';
 export type { BLEDevice, BLEPacket } from './native/BLEService';
 
 export { aiService } from './native/AIService';
-export type { AIConfig, DetectionResult } from './native/AIService';
+export type { AIServiceConfig as AIConfig, DetectionResult } from './native/AIService';
 
 export { ttsService } from './native/TTSService';
 export type { TTSConfig, TTSQueueItem } from './native/TTSService';
@@ -116,6 +116,41 @@ export {
   subscribeToNavigationLifecycle,
   DEFAULT_NAVIGATION_CONFIG,
 } from './live-navigation';
+
+export {
+  DetectionContractRegistry,
+  CameraLifecycleManager,
+  CameraPermissionCoordinator,
+  FramePipelineCoordinator,
+  FrameThrottleController,
+  FrameMetricsCollector,
+  DetectionQueueController,
+  DetectionDeduplicationLayer,
+  DetectionStalenessManager,
+  AIEventPriorityLayer,
+  DetectionRenderingCoordinator,
+  AIOverlaySynchronizationLayer,
+  DetectionVisibilityController,
+  BackgroundProcessingCoordinator,
+  FrameDropProtection,
+  RenderingPerformanceMonitor,
+  DetectionSessionManager,
+} from './camera';
+export type {
+  CameraFrame,
+  CameraSessionConfig,
+  CameraSessionState,
+  DetectionContract,
+  DetectionQueueItem,
+  DetectionPriority,
+  DetectionPosition,
+  DetectionConfidence,
+  AISessionMetrics,
+  AIPipelineEvent,
+  FrameBundle,
+} from './camera';
+
+export { AI_EVENTS } from './events/AI_EVENTS';
 export type {
   ObstacleEvent,
   Obstacle,
@@ -126,7 +161,6 @@ export type {
   NavigationStatus,
   GuidanceType,
   DangerLevel,
-  HapticPattern,
   GuidanceInstruction,
   RadarSector,
   RadarSnapshot,

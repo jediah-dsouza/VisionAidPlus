@@ -3,7 +3,7 @@ import { logger } from '../debug';
 import env from '../../env';
 import type { ObstacleDetection, BoundingBox } from '@shared/types';
 
-export interface AIConfig {
+export interface AIServiceConfig {
   mockMode: boolean;
   modelPath: string;
   confidenceThreshold: number;
@@ -106,7 +106,7 @@ class RealAIService extends AIServiceBase {
   }
 }
 
-const config: AIConfig = {
+  const config: AIServiceConfig = {
   mockMode: env.MOCK_AI_DETECTION,
   modelPath: env.AI_MODEL_PATH,
   confidenceThreshold: 0.7,
