@@ -10,6 +10,7 @@ import { liveNavigationSlice } from './slices/liveNavigationSlice';
 import { alertsSlice } from './slices/alertsSlice';
 import { voiceSlice } from './slices/voiceSlice';
 import { cameraSlice } from './slices/cameraSlice';
+import { analyticsSlice } from './slices/analyticsSlice';
 import { authReducer } from '@features/auth';
 import { onboardingReducer } from '@features/onboarding';
 
@@ -27,6 +28,7 @@ export const store = configureStore({
     alerts: alertsSlice.reducer,
     voice: voiceSlice.reducer,
     camera: cameraSlice.reducer,
+    analytics: analyticsSlice.reducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
