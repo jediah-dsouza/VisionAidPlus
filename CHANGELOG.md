@@ -11,6 +11,138 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 7 — BLE Realtime Communication Backbone (2026-05-24)
+
+**Core BLE Modules (`src/core/ble/`):**
+
+- Created `types.ts` — All BLE type definitions: BLEConnectionState (8-state machine), packet schemas (Obstacle, Battery, Signal, Status, Navigation), BLEEventMap, BLEScanConfig, BLEBackgroundConfig, BLEMetrics; default config exports
+- Created `constants.ts` — Service UUIDs, characteristic UUIDs (obstacle, battery, signal, status, navigation), reconnect backoff array (1s→2s→4s→8s→16s), limits (max reconnect attempts: 5, scan duration: 10s, connection timeout: 10s, disconnect timeout: 5s, rate limits, RSSI/battery thresholds), error codes, scan modes
+- Created `BLEPacketParser.ts` — Typed KV-pair parser for 5 packet types (`t=person,d=150,dir=center` wire format); includes `parse()`, `parseRaw()` for base64 decoding, metric tracking (total packets, parsed, errors, avg parse time); singleton export `blePacketParser`
+- Created `BLEScanner.ts` — Scan lifecycle with configurable mode/duration, device cache with 30-second TTL, listener system with unsubscribe pattern, mock discovery (2 mock devices: VisionAid Pro, VisionAid Mini), RSSI updates, EventBus events (`ble:scanStarted`, `ble:scanStopped`); singleton export `bleScanner`
+- Created `BLEConnectionManager.ts` — Connection state machine (idle→scanning→connecting→connected→disconnecting→disconnected→reconnecting→error), RSSI monitoring with configurable interval, battery update with threshold-based warnings (low: 20%, critical: 10%), mock connect simulation (500ms delay), disconnect lifecycle with mock (300ms delay), state change handler system, connection timeout guard; singleton export `bleConnectionManager`
+- Created `BLEReconnectionManager.ts` — Exponential backoff reconnection (1s→2s→4s→8s→16s), max 5 attempts, AppState pause/resume for background handling, EventBus publish on reconnect attempt/failure; singleton export `bleReconnectionManager`
+- Created `BLESubscriptionManager.ts` — Characteristic subscription registry with Map-based keying (`serviceUUID:characteristicUUID`), rate-limited notifications (10/sec), structured subscription info, destroy lifecycle; singleton export `bleSubscriptionManager`
+- Created `BLEManager.ts` — Singleton orchestrator managing scanner, connection, subscriptions, reconnection, background lifecycle; public API: `initialize()`, `startScan()`, `stopScan()`, `connectToDevice()`, `disconnect()`, `attemptReconnect()`, `sendControlCommand()`, `handlePacketReceived()`, `destroy()`; metrics tracking; packet routing to EventBus; singleton export `bleManager`
+- Created `index.ts` — Barrel export of all types, classes, singletons, constants
+
+**Redux Integration:**
+
+- Enhanced `bleSlice.ts` — Added `connectionState` (string enum), `connectedDeviceName`, `chargingStatus`, `mtu`, `reconnectAttempts`, `lastError`, `connectedAt`, `isScanning` fields; added `setConnectionState`, `setConnectedDevice` (object with `{id, name}`), `setChargingStatus`, `setMtu`, `setReconnectAttempts`, `setScanning` actions
+- Updated `BLEService.ts` — Thin native wrapper delegating to `bleManager`
+- Updated `DashboardEventMiddleware` — Added handlers for `BLE_DEVICE_RECONNECTING` and `LOW_BATTERY_WARNING` events; updated existing handlers for `connectionState` and `deviceName`
+- Updated `useDeviceStatus` hook — Returns `connectionState`, `chargingStatus`, `mtu`, `reconnectAttempts`, `isScanning`, `deviceName`, `isReconnecting`, `isError`
+- Updated `BLEStatusWidget.tsx` — Uses `connectionState` instead of legacy `status`; shows reconnecting state with attempt count, charging indicator, low battery warning
+- Updated `useHome.ts` — Added accessibility announcements for `LOW_BATTERY_WARNING` and `BLE_DEVICE_RECONNECTING`; summary uses `connectionState`
+
+**EventBus Enhancement:**
+
+- Added `EVENTS.BLE_DEVICE_RECONNECTING`, `EVENTS.BLE_DEVICE_SCANNING`, `EVENTS.BLE_DEVICE_FOUND` constants
+
+**Configuration:**
+
+- Updated `env.ts` — Added `BLE_REQUEST_MTU`, `BLE_MAX_RECONNECT_ATTEMPTS`, `BLE_SCAN_MODE`, `BLE_BACKGROUND_ENABLED`, `BLE_KEEP_CONNECTION_IN_BACKGROUND`
+- Added `bleManager.initialize()` call in `src/app/index.tsx` (both DEV and production)
+
+**Bug Fixes in BLE Modules:**
+
+- Fixed `DevSimulationEngine.ts` — `setConnectedDevice` now passes `{ id, name }` object instead of bare string
+- Fixed `DashboardDevPanel.tsx` — `setConnectedDevice` uses `{ id, name }` object signature
+- Fixed `useDevice.ts` — `setConnectedDevice` uses `{ id, name }` object signature
+- Replaced all `(eventBus as any).emit()` calls with `eventBus.publish()` throughout BLE modules
+- Fixed `BLEReconnectionManager.reset()` — Added `this.destroyed = false` to allow re-use after destroy
+- Fixed `BLEReconnectionManager.setupAppStateListener()` — Wrapped `AppState.addEventListener` in try/catch for test environment compatibility
+
+**Test Coverage (48 total BLE tests):**
+
+- `__tests__/ble/bleSlice.test.ts` — 15 tests: initial state, all set* actions, addDevice (new + update), setError, reset
+- `__tests__/ble/BLEPacketParser.test.ts` — 14 tests: all 5 packet type parsing (obstacle, battery, signal, status, navigation), edge cases (empty fields, malformed, missing chars), error routing, metric tracking, reset
+- `__tests__/ble/BLEReconnectionManager.test.ts` — 7 tests: idle state, reset, state snapshot, pause/resume lifecycle, destroy cleanup, mid-process restart, graceful no-op
+- `__tests__/ble/BLEManager.test.ts` — 12 integration tests: initialization/idempotent, scan lifecycle (mock device discovery), connect to discovered device, disconnect state transition, attemptReconnect, packet parsing and routing (obstacle + battery), reconnection manager reset on disconnect, subscription registration/deregistration, re-connect after disconnect, metrics tracking, destroy cleanup
+
+**Dev Packet Monitor Tab:**
+
+- Created `DevPacketMonitor.ts` — Dev-only singleton that listens to all BLE EventBus events (connected, disconnected, reconnecting, scanning, found, signal weak, error, low battery, scan started/stopped); stores timestamped log with direction, characteristic, payload type, parse status; max 200 entries; initialize/push/getLog/clear/destroy lifecycle
+- Created `DevPacketMonitorTab.tsx` — 7th tab in DashboardDevPanel; displays real-time BLE event log with color-coded payload types (green: success, yellow: warning, red: error), expandable rows showing direction, characteristic UUID, parse status, raw payload; clear button and live packet counter
+- Updated `DashboardDevPanel.tsx` — Added 'packets' tab (📦), initialized `devPacketMonitor` on mount, imports `DevPacketMonitorTab`
+- Updated `DevSimulationEngine.ts` — Added `simulateBLEPacket()` method that generates random mock KV-pair packets (obstacle, battery, signal, status, navigation), parses via `blePacketParser`, pushes to `devPacketMonitor`, and publishes to EventBus
+- Added "BLE Packet" simulation button (📦) to simulation controls grid
+
+**Fix:**
+
+- Fixed `__tests__/ble/BLEManager.test.ts` — Added missing `let BLEManager: any;` declaration to resolve TypeScript error TS2552
+
+**Documentation:**
+
+- Updated `AGENTS.md` — Changed current phase to "7 — BLE Realtime Communication Backbone"; added BLE Architecture section with module table, data flow diagram, console prefixes table, wire format explanation, state machine diagram, key integration points, Dev Panel Packets tab description, test coverage table; added BLE console prefixes to debugging table; updated test file count from 3 to 7
+
+#### Phase 7.5 — Device Feature Module (2026-05-24)
+
+**Architecture (`src/features/device/`):**
+
+- Created hierarchical module structure: types → hooks (8) → widgets (12) → screen (1 composition root)
+- All UI state flows through Redux selectors (`useAppSelector`); no BLEManager calls inside UI components
+- Backward compatible exports (`useDevice`, legacy `DeviceState`/`DeviceInfo`/`DeviceSettings` types preserved)
+
+**Types (`types/index.ts`, `types/legacy.ts`):**
+
+- Created `DeviceViewState` — composite of 8 view states (scan, connection, battery, signal, diagnostics, info, sensorHealth, calibration, reconnection)
+- Created `DeviceScanState`, `DeviceConnectionViewState`, `DeviceBatteryViewState`, `DeviceSignalViewState` — typed view models with computed properties (isLowBattery, signalQuality, etc.)
+- Created `SensorHealthStatus[]` — 5 sensor types (obstacle, battery, signal, status, navigation) with health states (healthy/warning/stale/inactive)
+- Created `DeviceDiagnosticsViewState` — metrics snapshot + formatted uptime
+- Created `DeviceCalibrationViewState` — status enum (idle/ready/in_progress/complete/failed)
+- Created `DeviceReconnectionViewState` — attempt tracking with time-until-next
+- Created `types/legacy.ts` — backward-compatible `DeviceState`, `DeviceInfo`, `DeviceSettings` exports
+
+**Hooks (`hooks/useDevice*.ts` — 8 hooks):**
+
+- `useDeviceScan` — scan lifecycle via `bleManager.startScan/stopScan`; returns isScanning, discoveredDevices, scanError, lastScanAt, clearDevices
+- `useDeviceConnection` — connection state machine via `bleManager.connectToDevice/disconnect/attemptReconnect`; returns connectionState (typed `BLEConnectionState`), isConnected/Connecting/Disconnecting/Reconnecting/Error, connectToDevice, disconnect, attemptReconnect, retryAfterError; dispatches Redux actions for all state transitions
+- `useDeviceBattery` — battery monitoring via Redux selector + `BLE_LIMITS` thresholds; returns batteryLevel, chargingStatus, isLowBattery (≤20%), isCriticalBattery (≤10%), isCharging, isBatteryFull; announces warnings via `accessibilityEngine.announce()`
+- `useDeviceSignal` — signal quality computation from RSSI (excellent ≥ -50, good ≥ -65, fair ≥ -80, weak ≥ -90, poor < -90, unknown); returns rssi, signalQuality, isWeakSignal, isCriticalSignal
+- `useDeviceDiagnostics` — metrics polling from `bleManager.metricsSnapshot` every 2s; returns totalPacketsReceived/Parsed/Errors, averageParseTimeMs, totalReconnections/Disconnections, uptimeFormatted (Xd Yh Zm Zs), lastPacketAt, hasActivity
+- `useDeviceSensorHealth` — EventBus subscription to `ble:packetReceived`; tracks last-update timestamp per sensor type; 5s stale check (30s timeout); returns sensors[] with status/message, allHealthy, activeCount, staleCount
+- `useDeviceCalibration` — calibration lifecycle with accessibility announcements; simulates 3s calibration delay; sends `bleManager.sendControlCommand('calibrate')`; returns status, isCalibrating, lastCalibratedAt, startCalibration, cancelCalibration, resetCalibration
+- `useDeviceReconnection` — reconnection UI state; auto-dismisses on connected; returns isReconnecting, currentAttempt, maxAttempts (5), timeUntilNextAttempt, dismissReconnection, showReconnectionUI; announces reconnection attempts via accessibilityEngine
+- `useDevice` — main composable hook: `{ viewState, scan, connection, battery, signal, diagnostics, sensorHealth, calibration, reconnection }`
+
+**Widgets (`widgets/*.tsx` — 12 widgets):**
+
+- `ScanHeader` — Scan/Stop button with ActivityIndicator spinner during scan; accessibilityLabel with busy state
+- `DeviceList` — FlatList of DeviceCard with keyExtractor; scanning loading state with spinner + "Scanning for nearby devices..." text
+- `DeviceCard` — Individual device row: device icon, name, ID, 4-bar RSSI visualization with color-coded bars, connected badge (green) or connecting badge (yellow); Pressable via Card.interactive; full accessibilityLabel with signal description, role="button", disabled state
+- `ConnectionStatus` — Color-coded pill badge: connected (green), connecting/reconnecting (yellow), idle/disconnected (gray), error (red); configurable size (sm/md); accessibilityLiveRegion="polite"
+- `DeviceInfoPanel` — Card with device icon, name, ID, firmware version, hardware version, MTU; accessibilityLabel per info row
+- `BatteryMonitor` — Card with battery icon, percentage bar (full-width rounded fill), numeric percentage, charging status indicator (⚡ + "Device is charging"); color coding: green (normal), yellow (low), red (critical), blue (charging)
+- `SignalMonitor` — Card with 4 animated-height signal bars; quality label (Excellent/Good/Fair/Weak/Poor/Unknown); RSSI value in dBm; weak/critical warning text
+- `SensorHealthGrid` — 2x2 grid of sensor status cards; icons per status (✅ healthy, ⚠️ warning, ⏰ stale, ⚪ inactive); sensor name + status label
+- `DiagnosticsPanel` — Collapsible Card (Pressable to toggle); shows summary row (packets, parsed, errors, error rate %) + expanded row (reconnects, disconnects, avg parse time, uptime) + last packet timestamp; collapsed state shows mini summary
+- `CalibrationAccessCard` — Card with calibration entry; shows status (Ready/In progress.../✅ Calibrated/❌ Failed); description text; Start Calibration / Cancel button (disabled when not connected); full accessibility
+- `ReconnectBanner` — Warning-styled banner with reconnection icon, "Reconnecting..." title, attempt X of 5 counter, countdown timer ("retry in Ns"), dismiss button (✕); accessibilityRole="alert", accessibilityLiveRegion="assertive"
+- `EmptyDeviceState` — Error state (⚠️ + error message + Retry button) or empty state (📱 + "No Devices Found" + description + Scan Again button)
+
+**Screen (`screens/DeviceScreen.tsx`):**
+
+- Full-screen composition root with header (title + ConnectionStatus badge + subtitle), ScrollView with RefreshControl
+- **Connected view**: DeviceInfoPanel → BatteryMonitor → SignalMonitor → SensorHealthGrid → DiagnosticsPanel (collapsible) → CalibrationAccessCard → Disconnect button (danger variant, Alert.alert confirmation)
+- **Disconnected view**: ScanHeader → DeviceList (if scanning or devices exist) or EmptyDeviceState → Connecting overlay (Loader)
+- **Reconnection**: ReconnectBanner rendered above both views when reconnection.showReconnectionUI is true
+- **Calibration**: Modal with Loader, instructions text, Cancel button when calibration.isCalibrating
+- Accessibility: `accessibilityEngine.announce()` for scan start, connect, disconnect, calibration lifecycle, battery warnings, reconnection attempts
+
+**Key constraints satisfied:**
+
+1. No BLEManager calls in UI — all BLE calls go through hooks
+2. State via Redux selectors — widgets use `useAppSelector` for bleState
+3. EventBus for real-time — sensor health subscribes to `ble:packetReceived`
+4. Backward compatible — `useDevice` export preserved, legacy types re-exported
+5. Accessibility — all interactive elements have `accessibilityLabel` + `accessibilityRole`; `accessibilityEngine.announce()` throughout
+6. Cleanup-safe — all hooks have `mountedRef` guard + `useEffect` cleanup
+7. Architecture layered — hooks → widgets → screen, no circular dependencies
+
+**Documentation:**
+
+- Updated `AGENTS.md` — Added Device Feature Module section with architecture diagram, hook table, widget catalog, screen composition, console prefixes; updated current phase to "7 — BLE Realtime Communication Backbone / Device Feature Module"; added device console prefixes to debugging table
+
 #### Android VIBRATE Permission & Haptic Fail-Safe System (2026-05-22)
 
 - Added `android.permission.VIBRATE` to `android/app/src/main/AndroidManifest.xml`
@@ -607,8 +739,9 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 
 ## Known Issues
 
-- ~46 lint warnings remaining (mostly unused imports and `any` types)
+- ~294 lint warnings remaining (pre-existing, mostly unused imports and `any` types; pre-commit hook enforces `--max-warnings=0`)
 - JDK 17+ required for Android builds (not installed in current environment)
+- Redux→React rendering gap: Force Redux Dispatch confirms `store.getState()` changes but widgets don't re-render (pre-existing UNRESOLVED)
 
 ## Debug Infrastructure
 
@@ -635,3 +768,6 @@ The following debug tools are available for development:
 - `[DashboardMiddleware]` - DashboardEventMiddleware operations
 - `[BLEWidget]` - BLEStatusWidget renders
 - `[AccessibilityEngine]` - Accessibility announcements
+- `[useDeviceScan]` - Device scan errors
+- `[useDeviceConnection]` - Connection lifecycle errors
+- `[useDeviceCalibration]` - Calibration start/fail/cancel

@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Alert as RNAlert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert as RNAlert, RefreshControl } from 'react-native';
 import { useTheme } from '@app/providers/ThemeProvider';
-import { Card, Button, Loader, EmptyState, Modal } from '@shared/design-system';
-import { useDevice } from '../hooks/useDevice';
+import { Button, Modal, Loader } from '@shared/design-system';
 import { semanticTokens } from '@shared/design-system/theme/semantic';
 import { tokens } from '@shared/design-system/theme/tokens';
+import { accessibilityEngine } from '@core/accessibility';
+import { useDevice } from '../hooks';
+import {
+  ScanHeader,
+  DeviceList,
+  ConnectionStatus,
+  DeviceInfoPanel,
+  BatteryMonitor,
+  SignalMonitor,
+  SensorHealthGrid,
+  DiagnosticsPanel,
+  CalibrationAccessCard,
+  ReconnectBanner,
+  EmptyDeviceState,
+} from '../widgets';
 
 interface DeviceScreenProps {
   navigation?: any;
@@ -12,166 +26,206 @@ interface DeviceScreenProps {
 
 export const DeviceScreen: React.FC<DeviceScreenProps> = () => {
   const { colors } = useTheme();
-  const { status, devices, connectedDeviceId, startScan, stopScan, connect, disconnect } =
-    useDevice();
-  const [showCalibration, setShowCalibration] = useState(false);
+  const {
+    viewState,
+    scan,
+    connection,
+    battery,
+    signal,
+    diagnostics,
+    sensorHealth,
+    calibration,
+    reconnection,
+  } = useDevice();
 
-  const isScanning = status === 'scanning';
-  const isConnecting = status === 'connecting';
-  const isConnected = status === 'connected';
+  const isConnected = connection.isConnected;
+  const isConnecting = connection.isConnecting;
+  const isScanning = scan.isScanning;
 
-  const connectedDevice = devices.find(d => d.id === connectedDeviceId);
-
-  const handleScan = () => {
+  const handleScanToggle = useCallback(() => {
     if (isScanning) {
-      stopScan();
+      scan.stopScan();
     } else {
-      startScan();
+      accessibilityEngine.announce('Scanning for nearby devices', 'normal', false);
+      scan.startScan();
     }
-  };
+  }, [isScanning, scan]);
 
-  const handleConnect = (deviceId: string) => {
-    connect(deviceId);
-  };
+  const handleConnect = useCallback(
+    async (device: any) => {
+      accessibilityEngine.announce(`Connecting to ${device.name}`, 'high', false);
+      await connection.connectToDevice(device);
+    },
+    [connection],
+  );
 
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     RNAlert.alert('Disconnect Device', 'Are you sure you want to disconnect from this device?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Disconnect', style: 'destructive', onPress: disconnect },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: () => {
+          accessibilityEngine.announce('Disconnecting from device', 'high', false);
+          connection.disconnect();
+        },
+      },
     ]);
-  };
+  }, [connection]);
 
-  const renderDeviceItem = ({ item }: { item: { id: string; name: string; rssi: number } }) => {
-    const isConnectedDevice = item.id === connectedDeviceId;
+  const handleRetryAfterError = useCallback(() => {
+    connection.retryAfterError();
+    handleScanToggle();
+  }, [connection, handleScanToggle]);
 
-    return (
-      <Card
-        variant={isConnectedDevice ? 'elevated' : 'outline'}
-        padding="md"
-        interactive
-        onPress={() => !isConnectedDevice && handleConnect(item.id)}
-        style={styles.deviceCard}>
-        <View style={styles.deviceInfo}>
-          <View style={styles.deviceIcon}>
-            <Text style={styles.deviceIconText}>📱</Text>
-          </View>
-          <View style={styles.deviceDetails}>
-            <Text style={styles.deviceName}>{item.name}</Text>
-            <Text style={styles.deviceId}>ID: {item.id}</Text>
-            <View style={styles.signalRow}>
-              <Text style={styles.signalLabel}>Signal:</Text>
-              <View
-                style={[
-                  styles.signalBar,
-                  { width: `${Math.max(0, Math.min(100, (item.rssi + 100) * 2))}%` },
-                ]}
-              />
-            </View>
-          </View>
-          {isConnectedDevice && (
-            <View style={styles.connectedBadge}>
-              <Text style={styles.connectedText}>Connected</Text>
-            </View>
-          )}
-        </View>
-      </Card>
-    );
-  };
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (isConnected) {
+      diagnostics.refresh();
+    } else {
+      await scan.startScan();
+    }
+    setRefreshing(false);
+  }, [isConnected, diagnostics, scan]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Device</Text>
+        <View style={styles.headerRow}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Device</Text>
+          <ConnectionStatus connectionState={viewState.connection.connectionState} size="sm" />
+        </View>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Connect your VisionAid device
+          {isConnected
+            ? `Connected to ${connection.connectedDeviceName ?? 'device'}`
+            : 'Manage your VisionAid device'}
         </Text>
       </View>
 
-      <View style={styles.content}>
-        {isConnected && connectedDevice ? (
-          <View style={styles.connectedSection}>
-            <Card variant="elevated" padding="lg">
-              <View style={styles.connectedHeader}>
-                <Text style={styles.connectedIcon}>📱</Text>
-                <Text style={styles.connectedTitle}>{connectedDevice.name}</Text>
-              </View>
-              <View style={styles.deviceStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Status</Text>
-                  <Text
-                    style={[styles.statValue, { color: semanticTokens.colors.success.default }]}>
-                    Connected
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Signal</Text>
-                  <Text style={styles.statValue}>Strong</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Battery</Text>
-                  <Text style={styles.statValue}>85%</Text>
-                </View>
-              </View>
-              <View style={styles.connectedActions}>
-                <Button variant="outline" size="md" onPress={() => setShowCalibration(true)}>
-                  Calibrate
-                </Button>
-                <Button variant="danger" size="md" onPress={handleDisconnect}>
-                  Disconnect
-                </Button>
-              </View>
-            </Card>
-          </View>
-        ) : (
-          <View style={styles.scanSection}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.textSecondary}
+          />
+        }>
+        {reconnection.showReconnectionUI && (
+          <ReconnectBanner
+            currentAttempt={reconnection.currentAttempt}
+            maxAttempts={reconnection.maxAttempts}
+            timeUntilNextAttempt={reconnection.timeUntilNextAttempt}
+            onDismiss={reconnection.dismissReconnection}
+          />
+        )}
+
+        {isConnected ? (
+          <View style={styles.connectedView}>
+            <DeviceInfoPanel
+              deviceName={connection.connectedDeviceName}
+              deviceId={connection.connectedDeviceId}
+              firmwareVersion={viewState.info.firmwareVersion}
+              hardwareVersion={viewState.info.hardwareVersion}
+              mtu={viewState.info.mtu}
+            />
+            <BatteryMonitor
+              batteryLevel={battery.batteryLevel}
+              chargingStatus={battery.chargingStatus}
+              isLowBattery={battery.isLowBattery}
+              isCriticalBattery={battery.isCriticalBattery}
+              isCharging={battery.isCharging}
+              isBatteryFull={battery.isBatteryFull}
+            />
+            <SignalMonitor
+              rssi={signal.rssi}
+              signalQuality={signal.signalQuality}
+              isWeakSignal={signal.isWeakSignal}
+              isCriticalSignal={signal.isCriticalSignal}
+            />
+            <SensorHealthGrid sensors={sensorHealth.sensors} />
+            <DiagnosticsPanel
+              totalPacketsReceived={diagnostics.totalPacketsReceived}
+              totalPacketsParsed={diagnostics.totalPacketsParsed}
+              totalParseErrors={diagnostics.totalParseErrors}
+              averageParseTimeMs={diagnostics.averageParseTimeMs}
+              totalReconnections={diagnostics.totalReconnections}
+              totalDisconnections={diagnostics.totalDisconnections}
+              uptimeFormatted={diagnostics.uptimeFormatted}
+              lastPacketAt={diagnostics.lastPacketAt}
+              hasActivity={diagnostics.hasActivity}
+            />
+            <CalibrationAccessCard
+              status={calibration.status}
+              isCalibrating={calibration.isCalibrating}
+              isConnected={isConnected}
+              onStartCalibration={calibration.startCalibration}
+              onCancelCalibration={calibration.cancelCalibration}
+            />
             <Button
-              variant={isScanning ? 'danger' : 'primary'}
+              variant="danger"
               size="lg"
               fullWidth
-              onPress={handleScan}
-              isLoading={isScanning || isConnecting}>
-              {isScanning ? 'Stop Scanning' : 'Scan for Devices'}
+              onPress={handleDisconnect}
+              accessibilityLabel="Disconnect from device">
+              Disconnect
             </Button>
-
-            {devices.length > 0 ? (
-              <FlatList
-                data={devices}
-                renderItem={renderDeviceItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.deviceList}
-                showsVerticalScrollIndicator={false}
+          </View>
+        ) : (
+          <View style={styles.disconnectedView}>
+            <ScanHeader isScanning={isScanning} onScanToggle={handleScanToggle} />
+            {isScanning || scan.discoveredDevices.length > 0 ? (
+              <DeviceList
+                devices={scan.discoveredDevices}
+                connectedDeviceId={connection.connectedDeviceId}
+                isConnecting={isConnecting}
+                isScanning={isScanning}
+                onConnect={handleConnect}
               />
-            ) : isScanning ? (
-              <View style={styles.scanningState}>
-                <Loader size="lg" label="Scanning for devices..." />
-              </View>
             ) : (
-              <EmptyState
-                title="No Devices Found"
-                description="Make sure your VisionAid device is powered on and in pairing mode."
-                actionLabel="Scan Again"
-                onAction={handleScan}
+              <EmptyDeviceState
+                isScanning={isScanning}
+                hasError={connection.isError}
+                errorMessage={connection.lastError}
+                onScan={handleScanToggle}
+                onRetry={handleRetryAfterError}
               />
+            )}
+            {isConnecting && (
+              <View style={styles.connectingOverlay}>
+                <Loader size="lg" label="Connecting to device..." />
+              </View>
             )}
           </View>
         )}
-      </View>
 
-      <Modal
-        visible={showCalibration}
-        onClose={() => setShowCalibration(false)}
-        title="Device Calibration"
-        description="Follow the instructions to calibrate your device for optimal performance."
-        size="md">
-        <View style={styles.calibrationContent}>
-          <Text style={styles.calibrationStep}>1. Hold device at chest level</Text>
-          <Text style={styles.calibrationStep}>2. Point forward</Text>
-          <Text style={styles.calibrationStep}>3. Press calibrate button</Text>
-          <Button variant="primary" size="md" fullWidth onPress={() => setShowCalibration(false)}>
-            Start Calibration
-          </Button>
-        </View>
-      </Modal>
+        {calibration.isCalibrating && (
+          <Modal
+            visible={calibration.isCalibrating}
+            onClose={calibration.cancelCalibration}
+            title="Calibrating Device"
+            description="Please wait while we calibrate your device sensors. Keep the device steady."
+            size="md">
+            <View style={styles.calibrationModalContent}>
+              <Loader size="xl" label="Calibrating sensors..." />
+              <Text style={styles.calibrationHint}>
+                Hold the device at chest level and point forward.
+              </Text>
+              <Button
+                variant="outline"
+                size="md"
+                fullWidth
+                onPress={calibration.cancelCalibration}
+                accessibilityLabel="Cancel calibration">
+                Cancel
+              </Button>
+            </View>
+          </Modal>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -181,8 +235,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: tokens.spacing[4],
+    paddingHorizontal: tokens.spacing[4],
+    paddingTop: tokens.spacing[4],
+    paddingBottom: tokens.spacing[2],
     gap: tokens.spacing[1],
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     fontSize: semanticTokens.fontSize['3xl'],
@@ -191,126 +252,41 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: semanticTokens.fontSize.base,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: tokens.spacing[4],
+    gap: tokens.spacing[4],
+    paddingBottom: tokens.spacing[8],
   },
-  connectedSection: {
+  connectedView: {
+    gap: tokens.spacing[4],
+  },
+  disconnectedView: {
     flex: 1,
     gap: tokens.spacing[4],
   },
-  connectedHeader: {
-    alignItems: 'center',
-    gap: tokens.spacing[3],
-    marginBottom: tokens.spacing[4],
-  },
-  connectedIcon: {
-    fontSize: 48,
-  },
-  connectedTitle: {
-    fontSize: semanticTokens.fontSize.xl,
-    fontWeight: tokens.fontWeight.semibold,
-    color: semanticTokens.colors.foreground.default,
-  },
-  deviceStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: tokens.spacing[4],
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: semanticTokens.fontSize.sm,
-    color: semanticTokens.colors.foreground.muted,
-  },
-  statValue: {
-    fontSize: semanticTokens.fontSize.lg,
-    fontWeight: tokens.fontWeight.semibold,
-    color: semanticTokens.colors.foreground.default,
-  },
-  connectedActions: {
-    flexDirection: 'row',
-    gap: tokens.spacing[3],
-    justifyContent: 'center',
-  },
-  scanSection: {
-    flex: 1,
-    gap: tokens.spacing[4],
-  },
-  deviceList: {
-    gap: tokens.spacing[3],
-    paddingTop: tokens.spacing[4],
-  },
-  deviceCard: {
-    marginBottom: tokens.spacing[2],
-  },
-  deviceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing[3],
-  },
-  deviceIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: tokens.radius.md,
-    backgroundColor: semanticTokens.colors.surface.elevated,
+  connectingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderRadius: tokens.radius.lg,
   },
-  deviceIconText: {
-    fontSize: 24,
+  calibrationModalContent: {
+    gap: tokens.spacing[6],
+    alignItems: 'center',
+    paddingVertical: tokens.spacing[4],
   },
-  deviceDetails: {
-    flex: 1,
-  },
-  deviceName: {
+  calibrationHint: {
     fontSize: semanticTokens.fontSize.base,
-    fontWeight: tokens.fontWeight.medium,
-    color: semanticTokens.colors.foreground.default,
-  },
-  deviceId: {
-    fontSize: semanticTokens.fontSize.xs,
     color: semanticTokens.colors.foreground.subtle,
-  },
-  signalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing[2],
-    marginTop: tokens.spacing[1],
-  },
-  signalLabel: {
-    fontSize: semanticTokens.fontSize.xs,
-    color: semanticTokens.colors.foreground.muted,
-  },
-  signalBar: {
-    height: 4,
-    backgroundColor: semanticTokens.colors.success.default,
-    borderRadius: 2,
-    maxWidth: 80,
-  },
-  connectedBadge: {
-    backgroundColor: semanticTokens.colors.success.muted,
-    paddingHorizontal: tokens.spacing[3],
-    paddingVertical: tokens.spacing[1],
-    borderRadius: tokens.radius.full,
-  },
-  connectedText: {
-    fontSize: semanticTokens.fontSize.xs,
-    fontWeight: tokens.fontWeight.medium,
-    color: semanticTokens.colors.success.default,
-  },
-  scanningState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calibrationContent: {
-    gap: tokens.spacing[4],
-  },
-  calibrationStep: {
-    fontSize: semanticTokens.fontSize.base,
-    color: semanticTokens.colors.foreground.default,
-    paddingVertical: tokens.spacing[2],
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

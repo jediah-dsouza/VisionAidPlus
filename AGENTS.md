@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 7 — BLE Realtime Communication Backbone (Phase 6.5 Dashboard Dev Testing Harness, Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
+**Current Phase**: 7 — BLE Realtime Communication Backbone / Device Feature Module (Phase 7 BLE, Phase 6.5 Dashboard Dev Testing Harness, Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
 
 ---
 
@@ -144,14 +144,116 @@ idle ← error (after 2s auto-transition)
 
 `src/features/home/dev/DevicePacketMonitorTab.tsx` — 7th tab in DashboardDevPanel. Captures all BLE EventBus events and simulated packets in real time. Shows timestamp, direction, payload type, parse status, raw payload (expandable). Clear button and live counter.
 
-### Test coverage (36 tests)
+### Test coverage (48 tests)
 
 | File | Tests | Status |
 |------|-------|--------|
 | `__tests__/ble/bleSlice.test.ts` | 15 | PASS |
 | `__tests__/ble/BLEPacketParser.test.ts` | 14 | PASS |
 | `__tests__/ble/BLEReconnectionManager.test.ts` | 7 | PASS |
-| `__tests__/ble/BLEManager.test.ts` | (integration) | PASS |
+| `__tests__/ble/BLEManager.test.ts` | 12 (integration) | PASS |
+
+---
+
+## Device Feature Module (Phase 7.5)
+
+### Architecture
+
+`src/features/device/` — 8 hooks, 12 widgets, 1 screen composable on top of Phase 7 BLE backbone:
+
+| Layer | Files | Responsibility |
+|-------|-------|---------------|
+| Types | `types/index.ts`, `types/legacy.ts` | DeviceViewState (composite of 8 view states), sensor health, diagnostics, calibration |
+| Hooks | `hooks/useDevice*.ts` (8 hooks) | Scan, connection, battery, signal, diagnostics, sensor health, calibration, reconnection |
+| Widgets | `widgets/*.tsx` (12 widgets) | ScanHeader, DeviceList, DeviceCard, ConnectionStatus, DeviceInfoPanel, BatteryMonitor, SignalMonitor, SensorHealthGrid, DiagnosticsPanel, CalibrationAccessCard, ReconnectBanner, EmptyDeviceState |
+| Screen | `screens/DeviceScreen.tsx` | Composition root — conditional connected/disconnected views |
+
+### Data flow
+
+```
+BLEManager (core/ble) → EventBus → DashboardEventMiddleware → Redux bleSlice
+                                                                   ↓
+    Device hooks (useAppSelector + bleManager.get*() + eventBus)
+                  ↓
+         Device widgets (pure render via useAppSelector)
+                  ↓
+           DeviceScreen (composition via useDevice())
+```
+
+### Hooks
+
+| Hook | File | Returns | BLE API used |
+|------|------|---------|-------------|
+| `useDeviceScan` | `hooks/useDeviceScan.ts` | isScanning, discoveredDevices, startScan, stopScan, clearDevices | `bleManager.startScan/stopScan` |
+| `useDeviceConnection` | `hooks/useDeviceConnection.ts` | connectionState, isConnected, connectToDevice, disconnect, attemptReconnect, retryAfterError | `bleManager.connectToDevice/disconnect/attemptReconnect` |
+| `useDeviceBattery` | `hooks/useDeviceBattery.ts` | batteryLevel, chargingStatus, isLowBattery, isCriticalBattery, isCharging, setBatteryLevel | Redux selector + accessibilityEngine |
+| `useDeviceSignal` | `hooks/useDeviceSignal.ts` | rssi, signalQuality (excellent/good/fair/weak/poor), isWeakSignal, updateRSSI | Redux selector |
+| `useDeviceDiagnostics` | `hooks/useDeviceDiagnostics.ts` | totalPackets*, parseErrors, avgParseTime, uptimeFormatted, reconnections | `bleManager.metricsSnapshot` (2s poll) |
+| `useDeviceSensorHealth` | `hooks/useDeviceSensorHealth.ts` | sensors[] (5 types), allHealthy, activeCount, staleCount | EventBus `ble:packetReceived` subscription |
+| `useDeviceCalibration` | `hooks/useDeviceCalibration.ts` | status (idle/ready/in_progress/complete/failed), startCalibration, cancelCalibration | `bleManager.sendControlCommand` |
+| `useDeviceReconnection` | `hooks/useDeviceReconnection.ts` | isReconnecting, currentAttempt, maxAttempts, dismissReconnection, showReconnectionUI | Redux selector (negative: auto-dismiss on connected) |
+
+### Main composable hook
+
+`useDevice()` returns `{ viewState, scan, connection, battery, signal, diagnostics, sensorHealth, calibration, reconnection }`
+- `viewState` is a `DeviceViewState` composite of all sub-hook states for one-shot rendering
+- Backward compatible export from `@features/device`
+
+### Widgets
+
+| Widget | Props | Description |
+|--------|-------|-------------|
+| `ScanHeader` | isScanning, onScanToggle | Scan button + scanning indicator spinner |
+| `DeviceList` | devices[], connectedDeviceId, isConnecting, isScanning, onConnect | FlatList of DeviceCard |
+| `DeviceCard` | device (BLEDevice), isConnected, isConnecting, onConnect | Single device row: name, ID, 4-bar RSSI, connected badge |
+| `ConnectionStatus` | connectionState, size? | Color-coded pill badge (green/yellow/red/gray per state) |
+| `DeviceInfoPanel` | deviceName, deviceId, firmwareVersion, hardwareVersion, mtu | Card with icon + info rows |
+| `BatteryMonitor` | batteryLevel, chargingStatus, isLowBattery/Critical/Charging/Full | Bar fill + percentage + charging indicator |
+| `SignalMonitor` | rssi, signalQuality, isWeakSignal/Critical | 4-bar animated signal display + quality label |
+| `SensorHealthGrid` | sensors[] (SensorHealthStatus) | 2×2 grid of sensor status cards (healthy/stale/inactive) |
+| `DiagnosticsPanel` | totalPackets*, parseErrors, avgParseTime, uptime, reconnections | Collapsible card: packets/errors/reconnects/uptime |
+| `CalibrationAccessCard` | status, isCalibrating, isConnected, start/cancel | Calibration entry + status + button |
+| `ReconnectBanner` | currentAttempt, maxAttempts, timeUntilNextAttempt, onDismiss | Warning banner with attempt counter + dismiss |
+| `EmptyDeviceState` | isScanning, hasError, errorMessage, onScan, onRetry | Error or empty state with retry action |
+
+### Screen composition
+
+```
+DeviceScreen
+├── Header (title + ConnectionStatus badge)
+├── ReconnectBanner (conditional)
+├── [Connected View — ScrollView]
+│   ├── DeviceInfoPanel
+│   ├── BatteryMonitor
+│   ├── SignalMonitor
+│   ├── SensorHealthGrid
+│   ├── DiagnosticsPanel (collapsible)
+│   ├── CalibrationAccessCard
+│   └── Disconnect Button (danger)
+├── [Disconnected View — ScrollView]
+│   ├── ScanHeader (scan/stop button)
+│   ├── DeviceList OR scanning Loader OR EmptyDeviceState
+│   └── Connecting overlay (conditional)
+└── Calibration Modal (conditional)
+```
+
+### Key constraints satisfied
+
+1. **No BLEManager calls in UI** — all BLE calls go through hooks
+2. **State via Redux selectors** — widgets use `useAppSelector` for bleState
+3. **EventBus for real-time** — sensor health subscribes to `ble:packetReceived`
+4. **Backward compatible** — `useDevice` export preserved, `types/index.ts` re-exports legacy types
+5. **Accessibility** — all interactive elements have `accessibilityLabel` + `accessibilityRole`; `accessibilityEngine.announce()` for scan start, connect, disconnect, calibration, battery warnings, reconnection
+6. **Cleanup-safe** — all hooks have `mountedRef` guard + `useEffect` cleanup
+7. **Architecture layered** — hooks → widgets → screen, no circular dependencies
+
+### Console log prefixes
+
+| Prefix | Source |
+|--------|--------|
+| `[useDeviceScan]` | Scan errors |
+| `[useDeviceConnection]` | Connection lifecycle errors |
+| `[useDeviceCalibration]` | Calibration start/fail/cancel |
 
 ---
 
@@ -180,6 +282,9 @@ idle ← error (after 2s auto-transition)
 | `[StoreDebug]` | Store identity checks (`store === globalThis.__VISIONAID_STORE__`) |
 | `[TouchTest]` | Touch interaction diagnostics on Modal buttons |
 | `[HomeScreen]` | HomeScreen render tracking |
+| `[useDeviceScan]` | Device scan errors |
+| `[useDeviceConnection]` | Connection lifecycle errors |
+| `[useDeviceCalibration]` | Calibration start/fail/cancel |
 | `[BLEManager]` | BLEManager init, connect, disconnect, control commands |
 | `[BLEConnection]` | Connection state transitions, mock connect, errors |
 | `[BLEScanner]` | Scan start/stop, mock device discovery, cache |

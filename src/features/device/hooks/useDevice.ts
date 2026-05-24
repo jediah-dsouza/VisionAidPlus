@@ -1,83 +1,68 @@
-import { useAppDispatch, useAppSelector, store } from '@app/store';
-import { bleActions } from '@app/store/slices/bleSlice';
-import { bleService, eventBus, EVENTS } from '../../../core';
-import type { BLEDevice } from '../../../core';
-import { useCallback, useEffect } from 'react';
+import { useMemo } from 'react';
+import type { DeviceViewState } from '../types';
+import { useDeviceScan } from './useDeviceScan';
+import { useDeviceConnection } from './useDeviceConnection';
+import { useDeviceBattery } from './useDeviceBattery';
+import { useDeviceSignal } from './useDeviceSignal';
+import { useDeviceDiagnostics } from './useDeviceDiagnostics';
+import { useDeviceSensorHealth } from './useDeviceSensorHealth';
+import { useDeviceCalibration } from './useDeviceCalibration';
+import { useDeviceReconnection } from './useDeviceReconnection';
 
-export const useDevice = () => {
-  const dispatch = useAppDispatch();
-  const bleState = useAppSelector(state => state.ble);
+export interface UseDeviceResult {
+  viewState: DeviceViewState;
+  scan: ReturnType<typeof useDeviceScan>;
+  connection: ReturnType<typeof useDeviceConnection>;
+  battery: ReturnType<typeof useDeviceBattery>;
+  signal: ReturnType<typeof useDeviceSignal>;
+  diagnostics: ReturnType<typeof useDeviceDiagnostics>;
+  sensorHealth: ReturnType<typeof useDeviceSensorHealth>;
+  calibration: ReturnType<typeof useDeviceCalibration>;
+  reconnection: ReturnType<typeof useDeviceReconnection>;
+}
 
-  const startScan = useCallback(async () => {
-    dispatch(bleActions.setStatus('scanning'));
-    try {
-      await bleService.startScan();
-    } catch (error) {
-      dispatch(bleActions.setError((error as Error).message));
-    }
-  }, [dispatch]);
+export const useDevice = (): UseDeviceResult => {
+  const scan = useDeviceScan();
+  const connection = useDeviceConnection();
+  const battery = useDeviceBattery();
+  const signal = useDeviceSignal();
+  const diagnostics = useDeviceDiagnostics();
+  const sensorHealth = useDeviceSensorHealth();
+  const calibration = useDeviceCalibration();
+  const reconnection = useDeviceReconnection();
 
-  const stopScan = useCallback(async () => {
-    try {
-      await bleService.stopScan();
-      dispatch(bleActions.setStatus('idle'));
-    } catch (error) {
-      console.error('Stop scan failed:', error);
-    }
-  }, [dispatch]);
-
-  const connect = useCallback(
-    async (deviceId: string) => {
-      dispatch(bleActions.setStatus('connecting'));
-      try {
-        await bleService.connect(deviceId);
-        dispatch(bleActions.setConnectedDevice({ id: deviceId, name: deviceId }));
-        dispatch(bleActions.setStatus('connected'));
-      } catch (error) {
-        dispatch(bleActions.setError((error as Error).message));
-      }
-    },
-    [dispatch],
+  const viewState: DeviceViewState = useMemo(
+    () => ({
+      scan,
+      connection,
+      battery,
+      signal,
+      diagnostics,
+      info: {
+        firmwareVersion: null,
+        hardwareVersion: null,
+        deviceState: null,
+        mtu: 23,
+        uptime: diagnostics.uptime,
+        deviceId: connection.connectedDeviceId,
+        deviceName: connection.connectedDeviceName,
+      },
+      sensorHealth: sensorHealth.sensors,
+      calibration,
+      reconnection,
+    }),
+    [scan, connection, battery, signal, diagnostics, sensorHealth, calibration, reconnection],
   );
 
-  const disconnect = useCallback(async () => {
-    try {
-      await bleService.disconnect();
-      dispatch(bleActions.setConnectedDevice(null));
-      dispatch(bleActions.setStatus('disconnected'));
-    } catch (error) {
-      console.error('Disconnect failed:', error);
-    }
-  }, [dispatch]);
-
-  useEffect(() => {
-    const unsubDeviceFound = eventBus.subscribe('BLE_DEVICE_FOUND', (device: BLEDevice) => {
-      const currentDevices = store.getState()?.ble?.devices ?? [];
-      dispatch(bleActions.setDevices([...currentDevices, device]));
-    });
-
-    const unsubConnected = eventBus.subscribe(EVENTS.BLE_DEVICE_CONNECTED, (device: BLEDevice) => {
-      dispatch(bleActions.setConnectedDevice({ id: device.id, name: device.name }));
-      dispatch(bleActions.setStatus('connected'));
-    });
-
-    const unsubDisconnected = eventBus.subscribe(EVENTS.BLE_DEVICE_DISCONNECTED, () => {
-      dispatch(bleActions.setConnectedDevice(null));
-      dispatch(bleActions.setStatus('disconnected'));
-    });
-
-    return () => {
-      unsubDeviceFound();
-      unsubConnected();
-      unsubDisconnected();
-    };
-  }, [dispatch]);
-
   return {
-    ...bleState,
-    startScan,
-    stopScan,
-    connect,
-    disconnect,
+    viewState,
+    scan,
+    connection,
+    battery,
+    signal,
+    diagnostics,
+    sensorHealth,
+    calibration,
+    reconnection,
   };
 };

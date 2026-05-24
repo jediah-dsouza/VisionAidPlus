@@ -21,6 +21,7 @@ type Modules = {
   blePacketParser: any;
 };
 
+let BLEManager: any;
 let bleManager: any;
 let bleConnectionManager: any;
 let bleScanner: any;
