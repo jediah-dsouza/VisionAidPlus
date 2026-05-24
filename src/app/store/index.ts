@@ -6,6 +6,7 @@ import { ttsSlice } from './slices/ttsSlice';
 import { settingsSlice } from './slices/settingsSlice';
 import { emergencySlice } from './slices/emergencySlice';
 import { navigationSlice } from './slices/navigationSlice';
+import { liveNavigationSlice } from './slices/liveNavigationSlice';
 import { alertsSlice } from './slices/alertsSlice';
 import { authReducer } from '@features/auth';
 import { onboardingReducer } from '@features/onboarding';
@@ -20,6 +21,7 @@ export const store = configureStore({
     settings: settingsSlice.reducer,
     emergency: emergencySlice.reducer,
     navigation: navigationSlice.reducer,
+    liveNavigation: liveNavigationSlice.reducer,
     alerts: alertsSlice.reducer,
   },
   middleware: getDefaultMiddleware =>

@@ -15,6 +15,7 @@ import { tokens } from '@shared/design-system/theme/tokens';
 
 import { HomeScreen } from '@features/home/screens';
 import { NavigationScreen } from '@features/navigation/screens';
+import { LiveNavigationScreen } from '@features/live-navigation/screens/LiveNavigationScreen';
 import { AlertsScreen } from '@features/alerts/screens';
 import { DeviceScreen } from '@features/device/screens';
 import { SettingsScreen } from '@features/settings/screens';
@@ -46,6 +47,7 @@ const HomeStackNavigator = () => (
 const NavigationStackNavigator = () => (
   <NavigationStack.Navigator id="NavigationStack" screenOptions={{ headerShown: false }}>
     <NavigationStack.Screen name="Navigation" component={NavigationScreen} />
+    <NavigationStack.Screen name="LiveNavigation" component={LiveNavigationScreen} />
   </NavigationStack.Navigator>
 );
 

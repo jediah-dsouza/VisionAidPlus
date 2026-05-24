@@ -1,5 +1,5 @@
-import React from 'react';
-import { StatusBar, LogBox, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { StatusBar, LogBox, StyleSheet, AppState } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as ReduxProvider } from 'react-redux';
@@ -17,6 +17,8 @@ import { dashboardEventMiddleware } from '@features/home/dashboard/middleware';
 import { accessibilityEngine } from '@core/accessibility';
 import { bleManager } from '@core/ble';
 import { emergencyManager } from '@core/emergency';
+import { navigationManager } from '@core/live-navigation';
+
 if (__DEV__) {
   accessibilityEngine.initialize();
   logger.debug('AccessibilityEngine initialized');
@@ -40,6 +42,10 @@ bleManager.initialize({
   },
 });
 logger.debug('[App] BLEManager initialized');
+
+// Initialize NavigationManager
+navigationManager.initialize();
+logger.debug('[App] NavigationManager initialized');
 
 // [DIAGNOSTIC] Store identity at Provider site
 const providerStoreId = (store as any).__REDUX_STORE_ID__;
@@ -72,8 +78,19 @@ const NavigationWrapper: React.FC = () => {
   const { colors } = useTheme();
   const navRef = React.useRef<NavigationContainerRef<any>>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     navigationGuard.setNavigationRef(navRef.current);
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: string) => {
+      if (nextState === 'active') {
+        navigationManager.handleForeground();
+      } else if (nextState === 'background' || nextState === 'inactive') {
+        navigationManager.handleBackground();
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   return (

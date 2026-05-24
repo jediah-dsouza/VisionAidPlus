@@ -40,6 +40,7 @@ export type HomeStackParamList = {
 
 export type NavigationStackParamList = {
   Navigation: undefined;
+  LiveNavigation: undefined;
   DestinationSearch: undefined;
   RouteDetails: { routeId: string };
 };

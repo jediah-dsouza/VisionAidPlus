@@ -110,3 +110,10 @@ export const resetToOnboarding = () => {
     routes: [{ name: 'Onboarding', params: { screen: 'Welcome' } }],
   });
 };
+
+export const navigateToLiveNavigation = () => {
+  navigationGuard.navigate('Main', {
+    screen: 'NavigationTab',
+    params: { screen: 'LiveNavigation' },
+  });
+};
