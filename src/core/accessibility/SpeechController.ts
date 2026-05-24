@@ -72,7 +72,7 @@ export class SpeechController {
 
   private shouldInterrupt(incoming: VoiceMessage): boolean {
     if (incoming.priority === 'critical') return true;
-    if (incoming.priority === 'high') return this.state !== 'speaking';
+    if (incoming.priority === 'high') return this.state === 'speaking';
     return false;
   }
 

@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 7 — BLE Realtime Communication Backbone / Device Feature Module (Phase 7 BLE, Phase 6.5 Dashboard Dev Testing Harness, Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
+**Current Phase**: 8 — Validation & Stability Sweep (Phase 7.5 Device Feature Module, Phase 7 BLE, Phase 6.5 Dashboard Dev Testing Harness, Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
 
 ---
 
@@ -131,7 +131,7 @@ idle ← error (after 2s auto-transition)
 
 ### Key integration points
 
-- `src/app/index.tsx:23` — `bleManager.initialize()` called after dev middleware init (both DEV and production)
+- `src/app/index.tsx:27` — `bleManager.initialize()` called after dev middleware init (both DEV and production)
 - `src/app/store/slices/bleSlice.ts` — Enhanced with connectionState, connectedDeviceName, chargingStatus, mtu, reconnectAttempts, lastError, connectedAt, isScanning
 - `src/core/native/BLEService.ts` — Thin wrapper delegating to BLEManager
 - `src/features/home/dashboard/middleware/index.ts` — Handles BLE_DEVICE_RECONNECTING, LOW_BATTERY_WARNING events
@@ -262,7 +262,7 @@ DeviceScreen
 ### Architecture
 
 `src/features/home/dashboard/`:
-- `middleware/` — `DashboardEventMiddleware` (EventBus → Redux bridge, initialized in `app/index.tsx` line 21)
+- `middleware/` — `DashboardEventMiddleware` (EventBus → Redux bridge, initialized in `app/index.tsx:22`)
 - `hooks/` — `useDashboard`, `useDashboardWidget`, `useObstacleHistory`, `useDeviceStatus`, `useAIStatus`
 - `widgets/` — BLEStatusWidget, AIStatusWidget, ObstacleDetectionCard, AIInstructionBanner, EmergencyFAB, QuickActions + QuickActionsPreset
 - Widgets support `compact` + full modes. They subscribe via `useAppSelector` to Redux and via `eventBus.subscribe` for real-time.
@@ -306,18 +306,46 @@ Force Redux Dispatch buttons (Dev Panel → Simulation tab) confirm `store.getSt
 
 ---
 
-## Framework Quirks & Gotchas
+## Phase 8 — Validation & Stability Sweep (Applied)
 
-- **Mock-only backend**: BLE/AI services are stubs (`MOCK_BLE_DEVICE`, `MOCK_AI_DETECTION` default `true` in `src/env.ts`).
-- **Env reads from `process.env`** at runtime with fallback defaults via `src/env.ts:21-29`. NOT react-native-dotenv.
-- **Form validation** (Phase 5): Zod + react-hook-form. Errors render only after field interaction (touchedFields pattern).
-- **AccessibilityEngine** + **DashboardEventMiddleware** must be `initialize()`'d at startup (done in `app/index.tsx:19-22` for `__DEV__`, needs call for production).
-- **7 test files** exist: 3 accessibility + App tests, 4 BLE test suites (bleSlice 15, BLEPacketParser 14, BLEReconnectionManager 7, BLEManager integration). Dashboard widgets and dev harness have zero tests.
-- **`Design.json`** at repo root is the formal architecture design reference (layers, event list, states, design tokens).
-- **~46 lint warnings** (unused imports, `any` types). Pre-commit rejects them (`--max-warnings=0`).
-- **`@tanstack/react-query`** in deps but minimally used. **`react-native-gesture-handler`** wraps app root.
-- **`LogBox.ignoreLogs(['Non-serializable values...'])`** suppressed in `app/index.tsx:34`.
-- **`commit-msg` hook** enforces `<type>(<scope>): <description>` with ≤50-char description. Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert.
+All fixes below were verified against source. See `CHANGELOG.md` for full details.
+
+### Critical fixes applied
+| Issue | File | Fix |
+|-------|------|-----|
+| Timer leak on concurrent `connect()` calls | `BLEConnectionManager.ts:75` | Clears existing connectTimer before new attempt |
+| `useDashboard.subscribe()` listener leak | `hooks/index.ts:81-86` | Unique keys per subscription via incrementing ID |
+| Duplicate accessibility announcements | `useHome.ts:38-117` | Removed obstacle/danger/reconnect/battery EventBus subs that duplicated `AccessibilityEngine` handlers |
+| Dual `connectionState`/`status` state drift | `bleSlice.ts` | `connectionStateToStatus()` mapping + `setConnected` batch action enforces consistency |
+| Sequential dispatches (5 renders per connect) | `middleware/index.ts:75-87` | Collapsed to single `setConnected()` dispatch |
+
+### High-priority fixes applied
+| Issue | File | Fix |
+|-------|------|-----|
+| `useDeviceCalibration` no mountedRef + 3s timeout leak | `useDeviceCalibration.ts` | Added `mountedRef`, `timeoutRef`, guard all state setters |
+| `useHome` no mountedRef | `useHome.ts` | Added `mountedRef` guard around async handlers |
+| `useDeviceScan` mountedRef not checked after await | `useDeviceScan.ts:36-41` | Guard `setLastScanAt` + catch block |
+| Cannot disconnect while `connecting` | `BLEConnectionManager.ts:99-107` | Added `state === 'connecting'` gate with timer cleanup |
+| `subscribeToDeviceServices()` failure unhandled | `BLEManager.ts:135-142` | Wrapped in try/catch, disconnects on failure |
+| `shouldInterrupt()` logic inverted (high-priority didn't interrupt) | `SpeechController.ts:75` | Changed `!==` to `===` — high interrupts speech |
+| Reconnection announcements not throttled | `useDeviceReconnection.ts:27-34` | `lastAnnouncedAttempt` ref deduplicates |
+| Battery announcements not throttled | `useDeviceBattery.ts:48-62` | `lastAnnouncedThreshold` ref prevents repeat announcements |
+| EventBus publish no rate limiting | `EventBus.ts:86-94` | Added 50ms throttle per event type |
+| Diagnostics polling runs when disconnected | `useDeviceDiagnostics.ts:40-49` | Polling only active when `connectionState === 'connected'` |
+
+### Medium-priority fixes applied
+- `BLEScanner` mock timer leak — tracked via `mockTimer` field, cleared in `stop()`/`destroy()`
+- `BLEReconnectionManager.reset()` set `destroyed = false` — now guards on destroyed
+- `BLEConnectionManager.finalizeDisconnect()` never cleared `deviceId` — now nulls all stale fields
+- `BLESubscriptionManager` — added 30s subscription heartbeat watchdog
+- `bleSlice.setBatteryLevel` — clamped to 0-100 range
+
+### Validation instrumentation added
+- `DevSimulationEngine`: `startLifecycleStressTest()` (rapid connect/disconnect cycles), `startPacketFloodTest()` (N packets/sec), `validateAllStates()` (consistency checks across all slices)
+
+### Unresolved (pre-existing)
+- Redux→React rendering gap: `store.getState()` changes but widgets don't re-render. Cross-reference `__REDUX_STORE_ID__` in `[StoreDebug]` logs.
+- `shouldInterrupt` concurrency lock: `interrupt()` and `processQueue()` can call `deliverMessage()` concurrently. Not fixed to avoid refactoring `SpeechController` state model.
 
 ## Additional Debugging Hooks
 

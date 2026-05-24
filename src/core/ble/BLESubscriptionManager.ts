@@ -1,5 +1,6 @@
 import env from '../../env';
 import { logger } from '@core/debug';
+import { eventBus, EVENTS } from '@core/events/EventBus';
 import type { BLEPacketType } from './types';
 import type { BLESubscriptionInfo } from './types';
 import { BLE_CHARACTERISTIC_UUIDS, BLE_LIMITS } from './constants';
@@ -20,6 +21,8 @@ export class BLESubscriptionManager {
   private activeMonitors: Map<string, { handler: NotificationHandler; unsubscribe: () => void }> = new Map();
   private notificationTimestamps: number[] = [];
   private destroyed = false;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private lastNotificationByKey: Map<string, number> = new Map();
 
   get activeSubscriptions(): BLESubscriptionInfo[] {
     return Array.from(this.subscriptions.values()).map(sub => ({
@@ -82,6 +85,7 @@ export class BLESubscriptionManager {
       }
 
       this.recordNotification();
+      this.recordNotificationForKey(key);
 
       const rawString = blePacketParser.parseRaw(serviceUUID, characteristicUUID, data);
       const parsed = blePacketParser.parse(characteristicUUID, rawString);
@@ -161,6 +165,34 @@ export class BLESubscriptionManager {
     );
   }
 
+  startWatchdog(timeoutMs: number = 30000): void {
+    this.stopWatchdog();
+    this.watchdogTimer = setInterval(() => {
+      const now = Date.now();
+      this.lastNotificationByKey.forEach((lastTime, key) => {
+        if (now - lastTime > timeoutMs) {
+          logger.warn(`[BLESubscriptionManager] Stale subscription: ${key}`);
+          eventBus.publish(EVENTS.BLE_ERROR, {
+            error: `Stale subscription: ${key}`,
+            code: -3,
+          }, 'high');
+          this.lastNotificationByKey.delete(key);
+        }
+      });
+    }, timeoutMs);
+  }
+
+  stopWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+  }
+
+  private recordNotificationForKey(key: string): void {
+    this.lastNotificationByKey.set(key, Date.now());
+  }
+
   private canAcceptNotification(): boolean {
     const now = Date.now();
     this.notificationTimestamps = this.notificationTimestamps.filter(
@@ -178,9 +210,11 @@ export class BLESubscriptionManager {
 
   destroy(): void {
     this.destroyed = true;
+    this.stopWatchdog();
     this.stopAllMonitoring();
     this.subscriptions.clear();
     this.notificationTimestamps = [];
+    this.lastNotificationByKey.clear();
   }
 }
 

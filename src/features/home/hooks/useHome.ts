@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppSelector, useAppDispatch, store } from '@app/store';
 import { eventBus, EVENTS } from '@core/events/EventBus';
 import { accessibilityEngine } from '@core/accessibility';
@@ -8,6 +8,12 @@ import { bleService } from '@core/native/BLEService';
 import { aiService } from '@core/native/AIService';
 
 export const useHome = () => {
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // [DIAGNOSTIC] Store identity from hook context (one-time)
   const useHomeStoreId = (store as any).__REDUX_STORE_ID__;
   const useHomeGlobalStore = (globalThis as any).__VISIONAID_STORE__;
@@ -36,29 +42,8 @@ export const useHome = () => {
   );
 
   useEffect(() => {
-    const unsubscribeObstacle = eventBus.subscribe(
-      EVENTS.AI_OBSTACLE_DETECTED,
-      payload => {
-        const obstacle = payload as { type: string; distance: number; voiceInstruction: string };
-        accessibilityEngine.announce(
-          `Obstacle detected: ${obstacle.type}, ${obstacle.distance} centimeters away`,
-          'high',
-        );
-      },
-      'normal',
-    );
-
-    const unsubscribeDanger = eventBus.subscribe(
-      EVENTS.AI_DANGER_DETECTED,
-      payload => {
-        const danger = payload as { type: string; distance: number; voiceInstruction: string };
-        accessibilityEngine.announce(
-          `Warning! ${danger.type} detected very close. ${danger.voiceInstruction}`,
-          'critical',
-        );
-      },
-      'critical',
-    );
+    // Only subscribe to EventBus for events NOT already handled by AccessibilityEngine
+    // Battery/reconnect announcements are handled by useDeviceBattery/useDeviceReconnection
 
     const unsubscribeBleConnected = eventBus.subscribe(
       EVENTS.BLE_DEVICE_CONNECTED,
@@ -80,39 +65,9 @@ export const useHome = () => {
       'high',
     );
 
-    const unsubscribeLowBattery = eventBus.subscribe(
-      EVENTS.LOW_BATTERY_WARNING,
-      (payload: unknown) => {
-        const data = payload as { level?: number };
-        if (data.level !== undefined && data.level <= 15) {
-          accessibilityEngine.announce(
-            `Critical: Device battery is ${data.level} percent. Please charge.`,
-            'critical',
-          );
-        }
-      },
-      'high',
-    );
-
-    const unsubscribeReconnecting = eventBus.subscribe(
-      EVENTS.BLE_DEVICE_RECONNECTING,
-      (payload: unknown) => {
-        const data = payload as { attempt: number; maxAttempts: number };
-        accessibilityEngine.announce(
-          `Reconnecting to device, attempt ${data.attempt} of ${data.maxAttempts}`,
-          'high',
-        );
-      },
-      'high',
-    );
-
     return () => {
-      unsubscribeObstacle();
-      unsubscribeDanger();
       unsubscribeBleConnected();
       unsubscribeBleDisconnected();
-      unsubscribeLowBattery();
-      unsubscribeReconnecting();
     };
   }, []);
 
@@ -122,6 +77,7 @@ export const useHome = () => {
     try {
       await bleService.startScan();
     } catch (error) {
+      if (!mountedRef.current) return;
       dispatch(bleActions.setError((error as Error).message));
     }
   }, [dispatch]);
@@ -130,9 +86,10 @@ export const useHome = () => {
     accessibilityEngine.announce('Disconnecting device', 'normal');
     try {
       await bleService.disconnect();
-      dispatch(bleActions.setConnectedDevice(null));
-      dispatch(bleActions.setStatus('disconnected'));
+      if (!mountedRef.current) return;
+      dispatch(bleActions.setConnected(null));
     } catch (error) {
+      if (!mountedRef.current) return;
       dispatch(bleActions.setError((error as Error).message));
     }
   }, [dispatch]);

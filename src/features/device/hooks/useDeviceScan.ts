@@ -33,8 +33,10 @@ export const useDeviceScan = (): UseDeviceScanResult => {
     dispatch(bleActions.setScanning(true));
     try {
       await bleManager.startScan();
+      if (!mountedRef.current) return;
       setLastScanAt(Date.now());
     } catch (error) {
+      if (!mountedRef.current) return;
       const message = (error as Error).message;
       setScanError(message);
       dispatch(bleActions.setError(message));

@@ -95,6 +95,8 @@ export class BLEManager {
       this.onConnectionStateChange(state, info);
     });
 
+    bleSubscriptionManager.startWatchdog();
+
     this.setupAppStateListener();
 
     this.isInitialized = true;
@@ -132,7 +134,13 @@ export class BLEManager {
 
     if (success) {
       bleConnectionManager.startRSSIMonitoring();
-      await this.subscribeToDeviceServices(device.id);
+      try {
+        await this.subscribeToDeviceServices(device.id);
+      } catch (err) {
+        logger.error('[BLEManager] Post-connect init failed:', err);
+        await this.disconnect('init_failure');
+        return false;
+      }
       this.metrics.totalReconnections = bleConnectionManager.info.reconnectAttempts;
     } else {
       this.pendingTargetDevice = null;
@@ -167,7 +175,13 @@ export class BLEManager {
     if (success) {
       this.metrics.totalReconnections++;
       bleConnectionManager.startRSSIMonitoring();
-      await this.subscribeToDeviceServices(deviceId);
+      try {
+        await this.subscribeToDeviceServices(deviceId);
+      } catch (err) {
+        logger.error('[BLEManager] Reconnect init failed:', err);
+        await this.disconnect('reconnect_init_failure');
+        return false;
+      }
     }
 
     return success;

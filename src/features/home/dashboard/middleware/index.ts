@@ -77,15 +77,9 @@ class DashboardEventMiddleware {
           console.log('[DashboardMiddleware] 📡 BLE_DEVICE_CONNECTED received:', payload);
           const data = payload as DashboardEventMap[typeof EVENTS.BLE_DEVICE_CONNECTED];
           if (data.deviceId) {
-            store.dispatch(bleActions.setConnectionState('connected'));
-            store.dispatch(bleActions.setStatus('connected'));
-            store.dispatch(bleActions.setConnectedDevice({ id: data.deviceId, name: data.deviceName || data.deviceId }));
-            if (data.rssi) {
-              store.dispatch(bleActions.setSignalStrength(data.rssi));
-            }
-            store.dispatch(bleActions.setScanning(false));
+            store.dispatch(bleActions.setConnected({ id: data.deviceId, name: data.deviceName || data.deviceId, rssi: data.rssi }));
           }
-          console.log('[DashboardMiddleware] ✅ Dispatched BLE connected actions');
+          console.log('[DashboardMiddleware] ✅ Dispatched BLE connected (batch)');
         },
         priority: 'high',
       },
@@ -93,12 +87,8 @@ class DashboardEventMiddleware {
         event: EVENTS.BLE_DEVICE_DISCONNECTED,
         handler: () => {
           console.log('[DashboardMiddleware] 📡 BLE_DEVICE_DISCONNECTED received');
-          store.dispatch(bleActions.setConnectionState('disconnected'));
-          store.dispatch(bleActions.setStatus('disconnected'));
-          store.dispatch(bleActions.setConnectedDevice(null));
-          store.dispatch(bleActions.setSignalStrength(-127));
-          store.dispatch(bleActions.setScanning(false));
-          console.log('[DashboardMiddleware] ✅ Dispatched BLE disconnected actions');
+          store.dispatch(bleActions.setConnected(null));
+          console.log('[DashboardMiddleware] ✅ Dispatched BLE disconnected (batch)');
         },
         priority: 'high',
       },
@@ -141,7 +131,6 @@ class DashboardEventMiddleware {
           const data = payload as DashboardEventMap[typeof EVENTS.BLE_DEVICE_RECONNECTING];
           store.dispatch(bleActions.setConnectionState('reconnecting'));
           store.dispatch(bleActions.setReconnectAttempts(data.attempt));
-          store.dispatch(bleActions.setStatus('reconnecting'));
           console.log('[DashboardMiddleware] 📡 BLE_DEVICE_RECONNECTING received:', payload);
         },
         priority: 'high',

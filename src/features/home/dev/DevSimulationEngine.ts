@@ -452,6 +452,52 @@ class DevSimulationEngine {
     setTimeout(() => this.stopStressTest(), durationMs);
   }
 
+  startLifecycleStressTest(durationMs: number = 15000): void {
+    if (!IS_DEV) return;
+
+    console.log(`[DevSim] 🔄 Starting LIFECYCLE stress test for ${durationMs}ms`);
+    this.isStressTesting = true;
+
+    let cycleCount = 0;
+    let isConnected = false;
+
+    this.stressTestInterval = setInterval(() => {
+      if (!isConnected) {
+        this.simulateBLEConnect();
+        isConnected = true;
+      } else {
+        this.simulateBLEDisconnect();
+        isConnected = false;
+      }
+      cycleCount++;
+      if (cycleCount % 5 === 0) {
+        console.log(`[DevSim] 🔄 Lifecycle cycles: ${cycleCount}`);
+      }
+    }, 200);
+
+    setTimeout(() => this.stopStressTest(), durationMs);
+  }
+
+  startPacketFloodTest(durationMs: number = 5000, packetsPerSecond: number = 50): void {
+    if (!IS_DEV) return;
+
+    console.log(`[DevSim] 🌊 Starting PACKET FLOOD: ${packetsPerSecond}/sec for ${durationMs}ms`);
+    this.isStressTesting = true;
+
+    const interval = Math.max(10, Math.floor(1000 / packetsPerSecond));
+    let count = 0;
+
+    this.stressTestInterval = setInterval(() => {
+      this.simulateBLEPacket();
+      count++;
+      if (count % packetsPerSecond === 0) {
+        console.log(`[DevSim] 🌊 Packet flood: ${count} packets sent`);
+      }
+    }, interval);
+
+    setTimeout(() => this.stopStressTest(), durationMs);
+  }
+
   stopStressTest(): void {
     if (this.stressTestInterval) {
       clearInterval(this.stressTestInterval);
@@ -485,6 +531,39 @@ class DevSimulationEngine {
 
     if (ble.status === 'connected' && !ble.connectedDeviceId) {
       issues.push('Connected state but no device ID');
+    }
+
+    if (ble.connectionState === 'connected' && ble.status !== 'connected') {
+      issues.push(`State mismatch: connectionState=${ble.connectionState} status=${ble.status}`);
+    }
+
+    if (ble.isScanning && ble.connectionState === 'connected') {
+      issues.push('Scanning while connected');
+    }
+
+    if (ble.connectionState === 'connected' && !ble.connectedDeviceId) {
+      issues.push('connectionState=connected but no device ID');
+    }
+
+    return { valid: issues.length === 0, issues };
+  }
+
+  validateAllStates(): { valid: boolean; issues: string[] } {
+    const state = store.getState();
+    const issues: string[] = [];
+
+    const bleResult = this.validateBLEConnection();
+    issues.push(...bleResult.issues.map(i => `[BLE] ${i}`));
+
+    const emResult = this.validateEmergencyState();
+    issues.push(...emResult.issues.map(i => `[EM] ${i}`));
+
+    if (state.ble.connectionState === 'reconnecting' && state.ble.connectedDeviceId) {
+      issues.push(`Reconnecting but deviceId still set: ${state.ble.connectedDeviceId}`);
+    }
+
+    if (state.ble.batteryLevel !== null && (state.ble.batteryLevel < 0 || state.ble.batteryLevel > 100)) {
+      issues.push(`Battery level out of range: ${state.ble.batteryLevel}`);
     }
 
     return { valid: issues.length === 0, issues };

@@ -29,6 +29,8 @@ class EventBus {
   private eventQueue: Array<{ event: string; payload: unknown; priority: EventPriority }> = [];
   private config: EventBusConfig;
   private subscriptionId = 0;
+  private lastPublishTime: Map<string, number> = new Map();
+  private readonly PUBLISH_THROTTLE_MS = 50;
 
   constructor(config: Partial<EventBusConfig> = {}) {
     eventBusInstanceCounter++;
@@ -81,6 +83,14 @@ class EventBus {
 
   publish<T = unknown>(event: string, payload: T, priority?: EventPriority): void {
     const resolvedPriority = priority ?? this.config.defaultPriority;
+    const now = Date.now();
+    const lastTime = this.lastPublishTime.get(event);
+
+    if (lastTime !== undefined && now - lastTime < this.PUBLISH_THROTTLE_MS) {
+      return;
+    }
+
+    this.lastPublishTime.set(event, now);
 
     console.log(`[EventBus#${this.instanceId}] 📤 PUBLISH: ${event}`, { priority: resolvedPriority });
     console.log(`[EventBus#${this.instanceId}] All subscriptions:`, Array.from(this.subscriptions.keys()));
@@ -127,9 +137,15 @@ class EventBus {
   removeAllListeners(event?: string): void {
     if (event) {
       this.subscriptions.delete(event);
+      this.lastPublishTime.delete(event);
     } else {
       this.subscriptions.clear();
+      this.lastPublishTime.clear();
     }
+  }
+
+  clearThrottleCache(): void {
+    this.lastPublishTime.clear();
   }
 }
 

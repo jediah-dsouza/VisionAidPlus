@@ -69,6 +69,11 @@ export class BLEConnectionManager {
       return true;
     }
 
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+
     this.transitionTo('connecting');
     this.connectionInfo = {
       ...this.connectionInfo,
@@ -94,8 +99,18 @@ export class BLEConnectionManager {
   }
 
   async disconnect(reason: string = 'user_initiated'): Promise<void> {
-    if (this.state !== 'connected' && this.state !== 'reconnecting') {
+    if (this.state !== 'connected' && this.state !== 'reconnecting' && this.state !== 'connecting') {
       logger.debug('[BLEConnection] Not connected, ignoring disconnect');
+      return;
+    }
+
+    if (this.state === 'connecting') {
+      if (this.connectTimer) {
+        clearTimeout(this.connectTimer);
+        this.connectTimer = null;
+      }
+      this.transitionTo('disconnected');
+      this.finalizeDisconnect(reason);
       return;
     }
 
@@ -236,8 +251,10 @@ export class BLEConnectionManager {
 
   private finalizeDisconnect(reason: string): void {
     this.connectionInfo.disconnectedAt = Date.now();
+    this.connectionInfo.connectedAt = null;
+    this.connectionInfo.rssi = -127;
+    this.deviceRef = null;
     bleSubscriptionManager.stopAllMonitoring();
-    bleScanner.updateRSSI(this.connectionInfo.deviceId!, -127);
 
     eventBus.publish(EVENTS.BLE_DEVICE_DISCONNECTED, { reason }, 'high');
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppSelector } from '@app/store';
 import { bleManager } from '@core/ble';
 import type { BLEMetrics } from '@core/ble';
 import type { DeviceDiagnosticsViewState } from '../types';
@@ -24,6 +25,7 @@ export const useDeviceDiagnostics = (): UseDeviceDiagnosticsResult => {
   const [metrics, setMetrics] = useState<BLEMetrics>(() => ({ ...bleManager.metricsSnapshot }));
   const mountedRef = useRef(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const connectionState = useAppSelector(state => state.ble.connectionState);
 
   const refresh = useCallback(() => {
     if (mountedRef.current) {
@@ -38,11 +40,18 @@ export const useDeviceDiagnostics = (): UseDeviceDiagnosticsResult => {
   }, []);
 
   useEffect(() => {
+    if (connectionState !== 'connected') {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
     intervalRef.current = setInterval(refresh, 2000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [refresh]);
+  }, [refresh, connectionState]);
 
   const viewState: DeviceDiagnosticsViewState = useMemo(
     () => ({

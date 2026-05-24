@@ -76,10 +76,12 @@ export const useDashboard = (options: UseDashboardOptions = {}): UseDashboardRet
 
   const error = useMemo(() => bleState.lastError ?? aiState.error ?? null, [bleState, aiState]);
 
+  let subId = 0;
   const subscribe = useCallback(
     (event: string, handler: (payload: unknown) => void): SubscriptionCleanup => {
       const unsubscribe = eventBus.subscribe(event, handler);
-      subscriptionsRef.current.set(event, unsubscribe);
+      const key = `${event}_${subId++}`;
+      subscriptionsRef.current.set(key, unsubscribe);
       return unsubscribe;
     },
     [],

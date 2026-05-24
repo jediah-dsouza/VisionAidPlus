@@ -11,6 +11,7 @@ export class BLEScanner {
   private isScanning = false;
   private scanStartTime: number | null = null;
   private scanTimer: ReturnType<typeof setTimeout> | null = null;
+  private mockTimer: ReturnType<typeof setTimeout> | null = null;
   private discoveredDevices: Map<string, BLEDevice> = new Map();
   private listeners: Set<ScanListener> = new Set();
   private config: BLEScanConfig;
@@ -75,6 +76,11 @@ export class BLEScanner {
     if (this.scanTimer) {
       clearTimeout(this.scanTimer);
       this.scanTimer = null;
+    }
+
+    if (this.mockTimer) {
+      clearTimeout(this.mockTimer);
+      this.mockTimer = null;
     }
 
     logger.info('[BLEScanner] Scan stopped', { reason });
@@ -154,13 +160,17 @@ export class BLEScanner {
       },
     ];
 
+    const lastIndex = mockDevices.length - 1;
     mockDevices.forEach((discovery, index) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (!this.isScanning) return;
         this.addOrUpdateDevice(discovery);
         this.notifyListeners(discovery);
         logger.debug(`[BLEScanner] Mock device discovered: ${discovery.device.name}`);
       }, (index + 1) * 500);
+      if (index === lastIndex) {
+        this.mockTimer = timer;
+      }
     });
   }
 
@@ -170,6 +180,10 @@ export class BLEScanner {
   }
 
   destroy(): void {
+    if (this.mockTimer) {
+      clearTimeout(this.mockTimer);
+      this.mockTimer = null;
+    }
     this.stop('destroy');
     this.clearCache();
     this.listeners.clear();

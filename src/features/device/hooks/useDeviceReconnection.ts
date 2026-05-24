@@ -16,6 +16,7 @@ export const useDeviceReconnection = (): UseDeviceReconnectionResult => {
   const connectionState = useAppSelector(state => state.ble.connectionState);
   const mountedRef = useRef(true);
   const [dismissed, setDismissed] = useState(false);
+  const lastAnnouncedAttempt = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -24,8 +25,10 @@ export const useDeviceReconnection = (): UseDeviceReconnectionResult => {
   }, []);
 
   useEffect(() => {
-    if (connectionState === 'reconnecting') {
+    if (connectionState === 'reconnecting' && reconnectAttempts !== lastAnnouncedAttempt.current) {
+      lastAnnouncedAttempt.current = reconnectAttempts;
       setDismissed(false);
+      if (!mountedRef.current) return;
       accessibilityEngine.announce(
         `Reconnection attempt ${reconnectAttempts + 1} of ${BLE_RECONNECT_BACKOFFS.length}`,
         'high',

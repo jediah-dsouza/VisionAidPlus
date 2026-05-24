@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { bleManager } from '@core/ble';
 import { accessibilityEngine } from '@core/accessibility';
 import { logger } from '@core/debug';
@@ -16,6 +16,17 @@ export interface UseDeviceCalibrationResult {
 export const useDeviceCalibration = (): UseDeviceCalibrationResult => {
   const [status, setStatus] = useState<CalibrationStatus>('idle');
   const [lastCalibratedAt, setLastCalibratedAt] = useState<number | null>(null);
+  const mountedRef = useRef(true);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const startCalibration = useCallback(async () => {
     if (!bleManager.isConnected) {
@@ -28,13 +39,17 @@ export const useDeviceCalibration = (): UseDeviceCalibrationResult => {
     logger.info('[useDeviceCalibration] Starting calibration');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise<void>(resolve => {
+        timeoutRef.current = setTimeout(resolve, 3000);
+      });
+      if (!mountedRef.current) return;
       bleManager.sendControlCommand('calibrate');
       setStatus('complete');
       setLastCalibratedAt(Date.now());
       accessibilityEngine.announce('Calibration complete', 'high', false);
       logger.info('[useDeviceCalibration] Calibration complete');
     } catch (error) {
+      if (!mountedRef.current) return;
       setStatus('failed');
       accessibilityEngine.announce('Calibration failed. Please try again.', 'high', true);
       logger.error('[useDeviceCalibration] Calibration failed:', error);

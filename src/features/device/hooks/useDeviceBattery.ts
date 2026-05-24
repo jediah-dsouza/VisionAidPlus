@@ -13,6 +13,8 @@ export interface UseDeviceBatteryResult extends DeviceBatteryViewState {
 export const useDeviceBattery = (): UseDeviceBatteryResult => {
   const dispatch = useAppDispatch();
   const bleState = useAppSelector(state => state.ble);
+  const lastAnnouncedThreshold = useRef<'normal' | 'low' | 'critical'>('normal');
+
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -45,18 +47,27 @@ export const useDeviceBattery = (): UseDeviceBatteryResult => {
       dispatch(bleActions.setBatteryLevel(level));
       dispatch(bleActions.setChargingStatus(status));
 
-      if (level <= BLE_LIMITS.BATTERY_CRITICAL_THRESHOLD) {
-        accessibilityEngine.announce(
-          `Critical battery: ${level} percent. Please charge your device immediately.`,
-          'critical',
-          true,
-        );
-      } else if (level <= BLE_LIMITS.BATTERY_LOW_THRESHOLD) {
-        accessibilityEngine.announce(
-          `Low battery: ${level} percent. Consider charging your device.`,
-          'high',
-          false,
-        );
+      const currentThreshold = level <= BLE_LIMITS.BATTERY_CRITICAL_THRESHOLD
+        ? 'critical'
+        : level <= BLE_LIMITS.BATTERY_LOW_THRESHOLD
+        ? 'low'
+        : 'normal';
+
+      if (currentThreshold !== lastAnnouncedThreshold.current) {
+        lastAnnouncedThreshold.current = currentThreshold;
+        if (level <= BLE_LIMITS.BATTERY_CRITICAL_THRESHOLD) {
+          accessibilityEngine.announce(
+            `Critical battery: ${level} percent. Please charge your device immediately.`,
+            'critical',
+            true,
+          );
+        } else if (level <= BLE_LIMITS.BATTERY_LOW_THRESHOLD) {
+          accessibilityEngine.announce(
+            `Low battery: ${level} percent. Consider charging your device.`,
+            'high',
+            false,
+          );
+        }
       }
     },
     [dispatch],
