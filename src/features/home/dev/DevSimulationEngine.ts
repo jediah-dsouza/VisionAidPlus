@@ -12,6 +12,8 @@ import { bleActions } from '@app/store/slices/bleSlice';
 import { aiActions } from '@app/store/slices/aiSlice';
 import { emergencyActions } from '@app/store/slices/emergencySlice';
 import { accessibilityEngine } from '@core/accessibility';
+import { blePacketParser, BLE_CHARACTERISTIC_UUIDS } from '@core/ble';
+import { devPacketMonitor } from './DevPacketMonitor';
 import type { ObstacleDetection } from '@shared/types';
 
 const IS_DEV = __DEV__;
@@ -211,7 +213,7 @@ class DevSimulationEngine {
       () => {
         console.log('[DevSim] Redux dispatch callback executing...');
         store.dispatch(bleActions.setStatus('connected'));
-        store.dispatch(bleActions.setConnectedDevice('vision-aid-001'));
+        store.dispatch(bleActions.setConnectedDevice({ id: 'vision-aid-001', name: 'VisionAid Pro' }));
         store.dispatch(bleActions.setSignalStrength(-45));
         store.dispatch(bleActions.setBatteryLevel(85));
         console.log('[DevSim] Redux dispatch callback complete. State:', store.getState().ble.status);
@@ -266,6 +268,35 @@ class DevSimulationEngine {
       () => {
         store.dispatch(bleActions.setSignalStrength(-80));
       },
+    );
+  }
+
+  simulateBLEPacket(): void {
+    const packetTypes = [
+      { uuid: BLE_CHARACTERISTIC_UUIDS.OBSTACLE, raw: 't=person,d=150,dir=center,sev=caution' },
+      { uuid: BLE_CHARACTERISTIC_UUIDS.BATTERY, raw: 'lvl=85,chg=discharging,v=3.7,temp=28' },
+      { uuid: BLE_CHARACTERISTIC_UUIDS.SIGNAL, raw: 'r=-45,tx=-60,nf=-90,snr=15' },
+      { uuid: BLE_CHARACTERISTIC_UUIDS.STATUS, raw: 'st=normal,ec=0,up=3600,fw=2.1.0,hw=1.0' },
+      { uuid: BLE_CHARACTERISTIC_UUIDS.NAVIGATION, raw: 'dir=straight,inst=Walk forward,d=500' },
+    ];
+
+    const pick = packetTypes[Math.floor(Math.random() * packetTypes.length)];
+    const result = blePacketParser.parse(pick.uuid, pick.raw);
+
+    devPacketMonitor.push({
+      direction: 'incoming',
+      characteristicUUID: pick.uuid,
+      payloadType: 'packet:' + ('packet' in result ? result.packet.type : 'parse_error'),
+      raw: pick.raw,
+      parseStatus: 'error' in result ? 'error' : 'success',
+      packet: 'packet' in result ? result.packet : undefined,
+    });
+
+    this.simulate(
+      'BLE_PACKET_RECEIVED',
+      { characteristicUUID: pick.uuid, raw: pick.raw, parsed: result },
+      'normal',
+      undefined,
     );
   }
 

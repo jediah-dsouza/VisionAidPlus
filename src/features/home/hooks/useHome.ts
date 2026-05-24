@@ -23,7 +23,8 @@ export const useHome = () => {
 
   const summary = useMemo(
     () => ({
-      deviceConnected: bleState.status === 'connected',
+      deviceConnected: bleState.connectionState === 'connected',
+      deviceReconnecting: bleState.connectionState === 'reconnecting',
       aiActive: aiState.status === 'detecting' || aiState.status === 'processing',
       emergencyActive: emergencyState.status !== 'idle',
       lastObstacle: aiState.currentObstacle,
@@ -79,11 +80,39 @@ export const useHome = () => {
       'high',
     );
 
+    const unsubscribeLowBattery = eventBus.subscribe(
+      EVENTS.LOW_BATTERY_WARNING,
+      (payload: unknown) => {
+        const data = payload as { level?: number };
+        if (data.level !== undefined && data.level <= 15) {
+          accessibilityEngine.announce(
+            `Critical: Device battery is ${data.level} percent. Please charge.`,
+            'critical',
+          );
+        }
+      },
+      'high',
+    );
+
+    const unsubscribeReconnecting = eventBus.subscribe(
+      EVENTS.BLE_DEVICE_RECONNECTING,
+      (payload: unknown) => {
+        const data = payload as { attempt: number; maxAttempts: number };
+        accessibilityEngine.announce(
+          `Reconnecting to device, attempt ${data.attempt} of ${data.maxAttempts}`,
+          'high',
+        );
+      },
+      'high',
+    );
+
     return () => {
       unsubscribeObstacle();
       unsubscribeDanger();
       unsubscribeBleConnected();
       unsubscribeBleDisconnected();
+      unsubscribeLowBattery();
+      unsubscribeReconnecting();
     };
   }, []);
 
@@ -129,7 +158,7 @@ export const useHome = () => {
       bleState.status === 'scanning' ||
       bleState.status === 'connecting' ||
       aiState.status === 'processing',
-    error: bleState.error ?? aiState.error ?? null,
+    error: bleState.lastError ?? aiState.error ?? null,
     handleConnectDevice,
     handleDisconnectDevice,
     handleStartDetection,

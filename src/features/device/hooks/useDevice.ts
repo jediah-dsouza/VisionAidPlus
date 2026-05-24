@@ -31,7 +31,7 @@ export const useDevice = () => {
       dispatch(bleActions.setStatus('connecting'));
       try {
         await bleService.connect(deviceId);
-        dispatch(bleActions.setConnectedDevice(deviceId));
+        dispatch(bleActions.setConnectedDevice({ id: deviceId, name: deviceId }));
         dispatch(bleActions.setStatus('connected'));
       } catch (error) {
         dispatch(bleActions.setError((error as Error).message));
@@ -57,7 +57,7 @@ export const useDevice = () => {
     });
 
     const unsubConnected = eventBus.subscribe(EVENTS.BLE_DEVICE_CONNECTED, (device: BLEDevice) => {
-      dispatch(bleActions.setConnectedDevice(device.id));
+      dispatch(bleActions.setConnectedDevice({ id: device.id, name: device.name }));
       dispatch(bleActions.setStatus('connected'));
     });
 

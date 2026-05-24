@@ -74,7 +74,7 @@ export const useDashboard = (options: UseDashboardOptions = {}): UseDashboardRet
     [bleState, aiState, emergencyState],
   );
 
-  const error = useMemo(() => bleState.error ?? aiState.error ?? null, [bleState, aiState]);
+  const error = useMemo(() => bleState.lastError ?? aiState.error ?? null, [bleState, aiState]);
 
   const subscribe = useCallback(
     (event: string, handler: (payload: unknown) => void): SubscriptionCleanup => {
@@ -166,22 +166,55 @@ export const useObstacleHistory = (maxItems: number = 10) => {
 };
 
 export const useDeviceStatus = () => {
-  const { status, connectedDeviceId, signalStrength, batteryLevel, error } = useAppSelector(
-    state => state.ble,
-  );
+  const {
+    connectionState,
+    status,
+    connectedDeviceId,
+    connectedDeviceName,
+    signalStrength,
+    batteryLevel,
+    chargingStatus,
+    mtu,
+    reconnectAttempts,
+    lastError,
+    connectedAt,
+    isScanning,
+  } = useAppSelector(state => state.ble);
 
   return useMemo(
     () => ({
-      isConnected: status === 'connected',
-      isConnecting: status === 'connecting' || status === 'scanning',
-      isDisconnected: status === 'disconnected' || status === 'idle',
+      connectionState,
+      isConnected: connectionState === 'connected',
+      isConnecting: connectionState === 'connecting' || connectionState === 'scanning',
+      isDisconnected: connectionState === 'disconnected' || connectionState === 'idle',
+      isReconnecting: connectionState === 'reconnecting',
+      isError: connectionState === 'error',
       deviceId: connectedDeviceId,
+      deviceName: connectedDeviceName,
       signalStrength,
       batteryLevel,
-      error,
+      chargingStatus,
+      mtu,
+      reconnectAttempts,
+      error: lastError,
+      connectedAt,
+      isScanning,
       status,
     }),
-    [status, connectedDeviceId, signalStrength, batteryLevel, error],
+    [
+      connectionState,
+      status,
+      connectedDeviceId,
+      connectedDeviceName,
+      signalStrength,
+      batteryLevel,
+      chargingStatus,
+      mtu,
+      reconnectAttempts,
+      lastError,
+      connectedAt,
+      isScanning,
+    ],
   );
 };
 

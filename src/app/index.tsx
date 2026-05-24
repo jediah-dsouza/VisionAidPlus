@@ -15,12 +15,26 @@ import { logger } from '@core/debug';
 // DEV ONLY: Initialize dashboard event middleware
 import { dashboardEventMiddleware } from '@features/home/dashboard/middleware';
 import { accessibilityEngine } from '@core/accessibility';
+import { bleManager } from '@core/ble';
 if (__DEV__) {
   accessibilityEngine.initialize();
   logger.debug('AccessibilityEngine initialized');
   dashboardEventMiddleware.initialize();
   logger.debug('Dashboard event middleware initialized');
 }
+
+// Initialize BLE Manager
+bleManager.initialize({
+  requestMTU: env.BLE_REQUEST_MTU,
+  scanDuration: env.BLE_SCAN_TIMEOUT,
+  backgroundConfig: {
+    enabled: env.BLE_BACKGROUND_ENABLED,
+    scanOnBackground: false,
+    keepConnection: env.BLE_KEEP_CONNECTION_IN_BACKGROUND,
+    subscribeOnForeground: false,
+  },
+});
+logger.debug('[App] BLEManager initialized');
 
 // [DIAGNOSTIC] Store identity at Provider site
 const providerStoreId = (store as any).__REDUX_STORE_ID__;

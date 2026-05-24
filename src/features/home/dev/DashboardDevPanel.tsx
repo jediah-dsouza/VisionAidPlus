@@ -23,6 +23,8 @@ import { DevValidationIndicators } from './DevValidationIndicators';
 import { DevStressTest } from './DevStressTest';
 import { DevMetrics } from './DevMetrics';
 import { DevValidationSummary } from './DevValidationSummary';
+import { DevPacketMonitorTab } from './DevPacketMonitorTab';
+import { devPacketMonitor } from './DevPacketMonitor';
 import { store } from '@app/store';
 import { bleActions } from '@app/store/slices/bleSlice';
 import { aiActions } from '@app/store/slices/aiSlice';
@@ -38,7 +40,7 @@ if (!__DEV__) {
 // ============================================================================
 // TYPES
 // ============================================================================
-type DevPanelTab = 'simulation' | 'console' | 'validation' | 'stress' | 'metrics' | 'summary';
+type DevPanelTab = 'simulation' | 'console' | 'validation' | 'stress' | 'packets' | 'metrics' | 'summary';
 
 interface SimulationButton {
   id: string;
@@ -87,6 +89,13 @@ const createSimulationButtons = (): SimulationButton[] => [
     icon: '📶',
     onPress: () => devSimulationEngine.simulateBLESignalWeak(),
     variant: 'warning',
+  },
+  {
+    id: 'ble-packet',
+    label: 'BLE Packet',
+    icon: '📦',
+    onPress: () => devSimulationEngine.simulateBLEPacket(),
+    variant: 'default',
   },
 
   // AI Events
@@ -266,7 +275,7 @@ const SimulationSection: React.FC = () => {
               console.log(`[DevPanel]   store === globalThis.__VISIONAID_STORE__: ${globalCheck}`);
               console.log(`[DevPanel]   subscribers before dispatch:`, (store as any).getState ? 'store.getState exists' : 'store.getState MISSING');
               store.dispatch(bleActions.setStatus('connected'));
-              store.dispatch(bleActions.setConnectedDevice('force-test-device'));
+              store.dispatch(bleActions.setConnectedDevice({ id: 'force-test-device', name: 'Force Test Device' }));
               console.log('[DevPanel] State after dispatch:', store.getState().ble);
               const afterSubCount = (store as any).listeners ? (store as any).listeners.size : 'unknown (no listeners property)';
               console.log(`[DevPanel]   subscriber count estimate: ${afterSubCount}`);
@@ -361,6 +370,8 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
 
   // Update events and metrics from simulation engine
   useEffect(() => {
+    devPacketMonitor.initialize();
+
     const intervalId = setInterval(() => {
       setEvents(devSimulationEngine.getEventLog());
       setMetrics(devSimulationEngine.getMetrics());
@@ -383,6 +394,7 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
     { key: 'console', label: '📋', title: 'Console' },
     { key: 'validation', label: '✅', title: 'Validate' },
     { key: 'stress', label: '🚀', title: 'Stress' },
+    { key: 'packets', label: '📦', title: 'Packets' },
     { key: 'metrics', label: '📊', title: 'Metrics' },
     { key: 'summary', label: '📝', title: 'Summary' },
   ] as const;
@@ -490,6 +502,7 @@ export const DashboardDevPanel: React.FC<DashboardDevPanelProps> = ({ initialVis
             <DevValidationIndicators onRunValidation={handleRerunTests} />
           )}
           {activeTab === 'stress' && <DevStressTest onMetricsUpdate={setMetrics} />}
+          {activeTab === 'packets' && <DevPacketMonitorTab />}
           {activeTab === 'metrics' && <DevMetrics autoRefresh={true} refreshInterval={1000} />}
           {activeTab === 'summary' && (
             <DevValidationSummary events={events} onRerunTests={handleRerunTests} />

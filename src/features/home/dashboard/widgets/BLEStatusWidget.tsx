@@ -12,8 +12,8 @@ interface BLEStatusWidgetProps {
   compact?: boolean;
 }
 
-const getStatusFromState = (status: string): WidgetStatus => {
-  switch (status) {
+const getStatusFromState = (connectionState: string): WidgetStatus => {
+  switch (connectionState) {
     case 'connected':
       return 'connected';
     case 'scanning':
@@ -77,16 +77,27 @@ export const BLEStatusWidget: React.FC<BLEStatusWidgetProps> = ({
     };
   }, []);
 
-  const { status, connectedDeviceId, signalStrength, batteryLevel, devices } = useAppSelector(
+  const {
+    connectionState,
+    status,
+    connectedDeviceId,
+    connectedDeviceName,
+    signalStrength,
+    batteryLevel,
+    chargingStatus,
+    devices,
+    reconnectAttempts,
+    isScanning,
+  } = useAppSelector(
     state => {
       console.log('[BLEWidget] Selector executing - full ble state:', state.ble);
       return state.ble;
     },
   );
 
-  console.log('[BLEWidget] Current Redux state:', { status, connectedDeviceId, signalStrength, batteryLevel });
+  console.log('[BLEWidget] Current Redux state:', { connectionState, status, connectedDeviceId, signalStrength, batteryLevel });
 
-  const widgetStatus = useMemo(() => getStatusFromState(status), [status]);
+  const widgetStatus = useMemo(() => getStatusFromState(connectionState), [connectionState]);
   const signalBars = useMemo(() => getSignalBars(signalStrength), [signalStrength]);
   const signalLabel = useMemo(() => getSignalLabel(signalStrength), [signalStrength]);
 
@@ -106,15 +117,19 @@ export const BLEStatusWidget: React.FC<BLEStatusWidgetProps> = ({
   }, [widgetStatus]);
 
   const statusText = useMemo(() => {
+    if (connectionState === 'reconnecting') {
+      return `Reconnecting (${reconnectAttempts})...`;
+    }
     switch (widgetStatus) {
       case 'connected':
         return 'Connected';
       case 'loading':
-        return status === 'scanning' ? 'Scanning...' : 'Connecting...';
+        if (isScanning) return 'Scanning...';
+        return 'Connecting...';
       default:
         return 'Disconnected';
     }
-  }, [widgetStatus, status]);
+  }, [widgetStatus, connectionState, isScanning, reconnectAttempts]);
 
   if (compact) {
     return (
@@ -186,7 +201,16 @@ export const BLEStatusWidget: React.FC<BLEStatusWidgetProps> = ({
             <View style={styles.batteryContainer}>
               <Text style={styles.batteryIcon}>🔋</Text>
               <Text style={styles.batteryText}>{batteryLevel}%</Text>
+              {chargingStatus === 'charging' && (
+                <Text style={styles.chargingText}>⚡</Text>
+              )}
+              {batteryLevel <= 20 && (
+                <Text style={styles.batteryLow}>⚠️</Text>
+              )}
             </View>
+          )}
+          {connectionState === 'reconnecting' && (
+            <Text style={styles.reconnectText}>Reconnecting...</Text>
           )}
         </View>
       )}
@@ -336,6 +360,19 @@ const styles = StyleSheet.create({
     fontSize: semanticTokens.fontSize.sm,
     fontWeight: tokens.fontWeight.medium,
     color: semanticTokens.colors.foreground.default,
+  },
+  chargingText: {
+    fontSize: 14,
+    marginLeft: tokens.spacing[1],
+  },
+  batteryLow: {
+    fontSize: 14,
+    marginLeft: tokens.spacing[1],
+  },
+  reconnectText: {
+    fontSize: semanticTokens.fontSize.xs,
+    color: semanticTokens.colors.warning.default,
+    marginTop: tokens.spacing[1],
   },
   hint: {
     marginTop: tokens.spacing[3],

@@ -1,14 +1,10 @@
-import { eventBus, EVENTS, EventPriority } from '../events/EventBus';
+import { eventBus, EVENTS } from '../events/EventBus';
 import { logger } from '../debug';
 import env from '../../env';
+import { bleManager } from '@core/ble';
+import type { BLEDevice, BLEScanConfig } from '@core/ble';
 
-export interface BLEDevice {
-  id: string;
-  name: string;
-  rssi: number;
-  isConnected: boolean;
-  batteryLevel?: number;
-}
+export type { BLEDevice };
 
 export interface BLEPacket {
   obstacle_type: string;
@@ -26,57 +22,69 @@ interface BLEServiceConfig {
 }
 
 abstract class BLEServiceBase {
-  abstract startScan(): Promise<void>;
+  abstract initialize(): void;
+  abstract startScan(config?: Partial<BLEScanConfig>): Promise<void>;
   abstract stopScan(): Promise<void>;
-  abstract connect(deviceId: string): Promise<void>;
+  abstract connect(deviceId: string): Promise<boolean>;
   abstract disconnect(): Promise<void>;
   abstract getConnectedDevice(): Promise<BLEDevice | null>;
+  abstract getDiscoveredDevices(): BLEDevice[];
+  abstract isConnected(): boolean;
 }
 
-class MockBLEService extends BLEServiceBase {
-  private connected = false;
-  private scanning = false;
-  private mockDevices: BLEDevice[] = [
-    { id: 'vision-aid-001', name: 'VisionAid Pro', rssi: -45, isConnected: false },
-    { id: 'vision-aid-002', name: 'VisionAid Mini', rssi: -60, isConnected: false },
-  ];
+class BLEManagerService extends BLEServiceBase {
+  initialize(): void {
+    bleManager.initialize();
+    logger.info('[BLEService] BLEManager initialized');
+  }
 
-  async startScan(): Promise<void> {
-    this.scanning = true;
-    logger.info('BLE: Starting scan (mock)');
-
+  async startScan(config?: Partial<BLEScanConfig>): Promise<void> {
     eventBus.publish(EVENTS.BLE_DEVICE_CONNECTED, { status: 'scanning' }, 'normal');
-
-    setTimeout(() => {
-      this.mockDevices.forEach(device => {
-        eventBus.publish('BLE_DEVICE_FOUND', device, 'normal');
-      });
-    }, 1000);
+    logger.info('[BLEService] Starting scan');
+    await bleManager.startScan();
   }
 
   async stopScan(): Promise<void> {
-    this.scanning = false;
-    logger.info('BLE: Stopping scan (mock)');
+    logger.info('[BLEService] Stopping scan');
+    await bleManager.stopScan();
   }
 
-  async connect(deviceId: string): Promise<void> {
-    logger.info(`BLE: Connecting to ${deviceId} (mock)`);
-    const device = this.mockDevices.find(d => d.id === deviceId);
-    if (device) {
-      device.isConnected = true;
-      this.connected = true;
-      eventBus.publish(EVENTS.BLE_DEVICE_CONNECTED, device, 'high');
+  async connect(deviceId: string): Promise<boolean> {
+    logger.info(`[BLEService] Connecting to ${deviceId}`);
+    const device = bleManager.discoveredDevices.find(d => d.id === deviceId);
+    if (!device) {
+      logger.error(`[BLEService] Device not found: ${deviceId}`);
+      return false;
     }
+    return bleManager.connectToDevice(device);
   }
 
   async disconnect(): Promise<void> {
-    this.connected = false;
-    this.mockDevices.forEach(d => (d.isConnected = false));
-    eventBus.publish(EVENTS.BLE_DEVICE_DISCONNECTED, {}, 'high');
+    logger.info('[BLEService] Disconnecting');
+    await bleManager.disconnect('user_initiated');
   }
 
   async getConnectedDevice(): Promise<BLEDevice | null> {
-    return this.mockDevices.find(d => d.isConnected) ?? null;
+    if (!bleManager.isConnected) return null;
+    const info = bleManager.deviceInfo;
+    return info.deviceId
+      ? {
+          id: info.deviceId,
+          name: info.deviceName ?? 'Unknown',
+          rssi: info.rssi,
+          isConnected: true,
+          batteryLevel: info.batteryLevel ?? undefined,
+          lastSeen: Date.now(),
+        }
+      : null;
+  }
+
+  getDiscoveredDevices(): BLEDevice[] {
+    return bleManager.discoveredDevices;
+  }
+
+  isConnected(): boolean {
+    return bleManager.isConnected;
   }
 
   simulateObstacleDetection(): void {
@@ -89,26 +97,36 @@ class MockBLEService extends BLEServiceBase {
       timestamp: new Date().toISOString(),
     };
 
-    const priority: EventPriority = mockPacket.severity === 'danger' ? 'critical' : 'normal';
+    const priority = mockPacket.severity === 'danger' ? 'critical' as const : 'normal' as const;
     eventBus.publish(EVENTS.AI_OBSTACLE_DETECTED, mockPacket, priority);
   }
 }
 
-class RealBLEService extends BLEServiceBase {
+class FallbackService extends BLEServiceBase {
+  initialize(): void {
+    logger.warn('[BLEService] Fallback service initialized (BLEManager unavailable)');
+  }
   async startScan(): Promise<void> {
-    logger.info('BLE: Real implementation - startScan');
+    logger.info('[BLEService] Fallback: startScan');
   }
   async stopScan(): Promise<void> {
-    logger.info('BLE: Real implementation - stopScan');
+    logger.info('[BLEService] Fallback: stopScan');
   }
-  async connect(_deviceId: string): Promise<void> {
-    logger.info('BLE: Real implementation - connect');
+  async connect(_deviceId: string): Promise<boolean> {
+    logger.info('[BLEService] Fallback: connect');
+    return false;
   }
   async disconnect(): Promise<void> {
-    logger.info('BLE: Real implementation - disconnect');
+    logger.info('[BLEService] Fallback: disconnect');
   }
   async getConnectedDevice(): Promise<BLEDevice | null> {
     return null;
+  }
+  getDiscoveredDevices(): BLEDevice[] {
+    return [];
+  }
+  isConnected(): boolean {
+    return false;
   }
 }
 
@@ -118,6 +136,19 @@ const config: BLEServiceConfig = {
   reconnectDelay: env.BLE_RECONNECT_DELAY,
 };
 
-export const bleService = config.mockMode ? new MockBLEService() : new RealBLEService();
+let bleServiceInstance: BLEServiceBase;
+
+try {
+  bleServiceInstance = new BLEManagerService();
+} catch {
+  logger.warn('[BLEService] Falling back to FallbackService');
+  bleServiceInstance = new FallbackService();
+}
+
+export const bleService = bleServiceInstance;
+
+if (env.MOCK_BLE_DEVICE) {
+  bleService.initialize();
+}
 
 export type { BLEServiceConfig };

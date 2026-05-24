@@ -16,6 +16,11 @@ interface Environment {
   ENABLE_ANALYTICS: boolean;
   MOCK_BLE_DEVICE: boolean;
   MOCK_AI_DETECTION: boolean;
+  BLE_REQUEST_MTU: number;
+  BLE_MAX_RECONNECT_ATTEMPTS: number;
+  BLE_SCAN_MODE: 'lowPower' | 'balanced' | 'lowLatency';
+  BLE_BACKGROUND_ENABLED: boolean;
+  BLE_KEEP_CONNECTION_IN_BACKGROUND: boolean;
 }
 
 const getEnvValue = <T>(key: string, defaultValue: T): T => {
@@ -46,6 +51,11 @@ const env: Environment = {
   ENABLE_ANALYTICS: getEnvValue('ENABLE_ANALYTICS', false),
   MOCK_BLE_DEVICE: getEnvValue('MOCK_BLE_DEVICE', true),
   MOCK_AI_DETECTION: getEnvValue('MOCK_AI_DETECTION', true),
+  BLE_REQUEST_MTU: getEnvValue('BLE_REQUEST_MTU', 512),
+  BLE_MAX_RECONNECT_ATTEMPTS: getEnvValue('BLE_MAX_RECONNECT_ATTEMPTS', 5),
+  BLE_SCAN_MODE: getEnvValue('BLE_SCAN_MODE', 'balanced'),
+  BLE_BACKGROUND_ENABLED: getEnvValue('BLE_BACKGROUND_ENABLED', true),
+  BLE_KEEP_CONNECTION_IN_BACKGROUND: getEnvValue('BLE_KEEP_CONNECTION_IN_BACKGROUND', true),
 };
 
 export default env;

@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Android VIBRATE Permission & Haptic Fail-Safe System (2026-05-22)
+
+- Added `android.permission.VIBRATE` to `android/app/src/main/AndroidManifest.xml`
+- Added `canVibrate` auto-disable flag to `HapticCoordinator` — disables all haptics on first failure without crashing
+- Wrapped all `Vibration.vibrate()` and `Vibration.cancel()` calls in try/catch with `console.warn('[Haptics] ...')` 
+- Wrapped all `hapticCoordinator.*` calls in `AccessibilityEngine` in try/catch (8 call sites across `triggerHaptic`, `triggerHapticByPriority`, `enterEmergencyMode`, `updateConfig`, `setupSpeechController`, `announceFromEvent`)
+- All event simulations (BLE, AI, Emergency) continue normally when haptics fail — EventBus publishes, Redux dispatches, widgets update, speech works
+
 #### Phase 6.5 - Dashboard Dev Testing Harness
 
 **Dev Simulation Engine:**
@@ -313,6 +321,21 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 
 ### Fixed
 
+#### Global Touch System — Dev Panel Modal Auto-Open Root Cause (2026-05-22)
+
+**Root cause identified and fixed**: `DashboardDevPanel.tsx:337` — `initialVisible = true` defaulted the Dev Panel Modal to visible on mount. The Modal had `transparent={false}` and `presentationStyle="pageSheet"`, creating a full-screen opaque layer that swallowed ALL touch events across the entire app.
+
+- Changed `initialVisible = true` → `initialVisible = false` — Dev Panel now starts as a small floating "🧪 DEV" button, opening the full-screen Modal only on user tap
+- Touch events now propagate to HomeScreen test button, dashboard widgets, and all interactive elements
+
+#### DEV Toggle Button Diagnostics & Isolation (2026-05-22)
+
+- Added diagnostic logs to DEV toggle button: `onTouchStart`, `onPressIn`, `onPress`, `onPressOut` with `[DevPanel]` prefix
+- Added `isVisible` state change logging via `useEffect`
+- Added plain `RNButton` alongside `Pressable` for A/B touch comparison
+- Replaced `position: absolute` button with `toggleWrapper` View (absolute positioned container with `elevation: 1000`, `zIndex: 1000`, `pointerEvents: 'box-none'`)
+- Added explicit `width: 80`, `height: 48` to toggle button with `pointerEvents: 'auto'`
+
 #### AGENTS.md — Compacted and Focused (2026-05-22)
 
 - Rewrote from 288 lines to 130 lines by removing obvious info (file tree, full env table, navigator catalog, design system list, performance targets, phase prose)
@@ -536,6 +559,16 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 - Fixed StorageService.ts readonly array type error (getAllKeys return type)
 
 ### Changed
+
+#### AGENTS.md — Wrapper Refactor + Detail Updates (2026-05-22)
+
+- Root `AGENTS.md` trimmed from 142 to 8 lines — now a concise wrapper pointing to `VisionAidPlus/AGENTS.md` and `Design.json`
+- `VisionAidPlus/AGENTS.md`:
+  - Added `test:ci` and `analyze` to commands table
+  - Added staging build gradle task warning (`npm run android:build:staging` targets wrong task)
+  - Added commit-msg 50-char description limit detail
+  - Added `Design.json` architecture design reference
+  - Updated UNRESOLVED touch section to ✅ RESOLVED with root cause and fix documentation
 
 #### Refactoring
 

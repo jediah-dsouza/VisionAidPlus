@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 6.5 — Dashboard Dev Testing Harness (+ Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
+**Current Phase**: 7 — BLE Realtime Communication Backbone (Phase 6.5 Dashboard Dev Testing Harness, Phase 6 Dashboard, Phase 5 Auth/Onboarding, Phase 4 Accessibility Engine)
 
 ---
 
@@ -80,6 +80,81 @@ In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled
 
 ---
 
+## BLE Communication Backbone (Phase 7)
+
+### Architecture
+
+`src/core/ble/` — 7 modules + barrel export, all with singleton exports:
+
+| Module | File | Responsibility |
+|--------|------|---------------|
+| Types | `types.ts` | All BLE type definitions, packet schemas, event map, connection configs, defaults |
+| Constants | `constants.ts` | Service/characteristic UUIDs, backoff arrays, limits, error codes |
+| BLEPacketParser | `BLEPacketParser.ts` | Typed KV-pair parser (5 packet types: obstacle, battery, signal, status, navigation); metric tracking |
+| BLEScanner | `BLEScanner.ts` | Scan lifecycle, device cache with 30s TTL, listener system, mock discovery (2 devices) |
+| BLEConnectionManager | `BLEConnectionManager.ts` | Connection state machine (8 states: idle→scanning→connecting→connected→disconnecting→disconnected→reconnecting→error), RSSI monitoring, battery thresholds, mock connect simulation |
+| BLEReconnectionManager | `BLEReconnectionManager.ts` | Exponential backoff (1s→2s→4s→8s→16s), max 5 attempts, AppState pause/resume |
+| BLESubscriptionManager | `BLESubscriptionManager.ts` | Characteristic subscription registry, rate-limited notifications (10/sec), safe unsubscribe |
+| BLEManager | `BLEManager.ts` | Singleton orchestrator — initializes all sub-managers, handles packet routing to EventBus, connect/disconnect/scan public API, background lifecycle |
+
+### Data flow
+
+```
+BLE Packet (raw) → BLEPacketParser.parse() → typed packet → BLEManager.handlePacketReceived()
+  → BLEConnectionManager.updateBattery/updateRSSI
+  → eventBus.publish(EVENTS.*) → DashboardEventMiddleware → Redux bleSlice → Widgets
+```
+
+### Console log prefixes
+
+| Prefix | Source |
+|--------|--------|
+| `[BLEManager]` | BLEManager init, connect, disconnect, control commands |
+| `[BLEConnection]` | Connection state transitions, mock connect, errors |
+| `[BLEScanner]` | Scan start/stop, mock device discovery, cache |
+| `[BLEReconnection]` | Reconnection scheduling, attempts, success/failure |
+| `[BLESubscriptionManager]` | Subscription registration, monitoring rate limits |
+| `[BLEPacketParser]` | Packet parse results and errors |
+
+### Wire format
+
+KV-pair (not JSON): `t=person,d=150,dir=center,sev=caution`. Chosen for reduced packet size and parsing latency on embedded device.
+
+### State machine
+
+```
+idle → scanning → connecting → connected → disconnecting → disconnected
+                                        ↓
+                                   reconnecting (→ connected on success, → error on exhaust)
+idle ← error (after 2s auto-transition)
+```
+
+### Key integration points
+
+- `src/app/index.tsx:23` — `bleManager.initialize()` called after dev middleware init (both DEV and production)
+- `src/app/store/slices/bleSlice.ts` — Enhanced with connectionState, connectedDeviceName, chargingStatus, mtu, reconnectAttempts, lastError, connectedAt, isScanning
+- `src/core/native/BLEService.ts` — Thin wrapper delegating to BLEManager
+- `src/features/home/dashboard/middleware/index.ts` — Handles BLE_DEVICE_RECONNECTING, LOW_BATTERY_WARNING events
+- `src/features/home/dashboard/hooks/index.ts` — useDeviceStatus returns connectionState, chargingStatus, mtu, reconnectAttempts, isScanning, deviceName, isReconnecting, isError
+- `src/features/home/dashboard/widgets/BLEStatusWidget.tsx` — Shows reconnecting state with attempt count, charging indicator, low battery warning
+- `src/features/home/hooks/useHome.ts` — Accessibility announcements for reconnect, low battery
+- `src/env.ts` — BLE configuration: MOCK_BLE_DEVICE, BLE_REQUEST_MTU, BLE_MAX_RECONNECT_ATTEMPTS, BLE_SCAN_MODE, BLE_BACKGROUND_ENABLED, BLE_KEEP_CONNECTION_IN_BACKGROUND
+
+### Dev Panel Packets tab
+
+`src/features/home/dev/DevicePacketMonitorTab.tsx` — 7th tab in DashboardDevPanel. Captures all BLE EventBus events and simulated packets in real time. Shows timestamp, direction, payload type, parse status, raw payload (expandable). Clear button and live counter.
+
+### Test coverage (36 tests)
+
+| File | Tests | Status |
+|------|-------|--------|
+| `__tests__/ble/bleSlice.test.ts` | 15 | PASS |
+| `__tests__/ble/BLEPacketParser.test.ts` | 14 | PASS |
+| `__tests__/ble/BLEReconnectionManager.test.ts` | 7 | PASS |
+| `__tests__/ble/BLEManager.test.ts` | (integration) | PASS |
+
+---
+
 ## Dashboard & Dev Testing Harness (Phase 6–6.5)
 
 ### Architecture
@@ -105,6 +180,12 @@ In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled
 | `[StoreDebug]` | Store identity checks (`store === globalThis.__VISIONAID_STORE__`) |
 | `[TouchTest]` | Touch interaction diagnostics on Modal buttons |
 | `[HomeScreen]` | HomeScreen render tracking |
+| `[BLEManager]` | BLEManager init, connect, disconnect, control commands |
+| `[BLEConnection]` | Connection state transitions, mock connect, errors |
+| `[BLEScanner]` | Scan start/stop, mock device discovery, cache |
+| `[BLEReconnection]` | Reconnection scheduling, attempts, success/failure |
+| `[BLESubscriptionManager]` | Subscription registration, monitoring rate limits |
+| `[BLEPacketParser]` | Packet parse results and errors |
 
 ### ✅ RESOLVED: Dev Panel Modal auto-opening blocked all touches
 
@@ -114,13 +195,19 @@ In `AppNavigator.tsx`, the `getInitialRoute()` check for `isDevAuthBypassEnabled
 
 ---
 
+### ⚠️ UNRESOLVED: Redux→React rendering gap
+
+Force Redux Dispatch buttons (Dev Panel → Simulation tab) confirm `store.getState()` changes but widgets do not re-render. This rules out EventBus and middleware — the bug is in the Redux→React rendering layer. Cross-reference `__REDUX_STORE_ID__` values in `[StoreDebug]` logs at every consumer to catch stale store references.
+
+---
+
 ## Framework Quirks & Gotchas
 
 - **Mock-only backend**: BLE/AI services are stubs (`MOCK_BLE_DEVICE`, `MOCK_AI_DETECTION` default `true` in `src/env.ts`).
 - **Env reads from `process.env`** at runtime with fallback defaults via `src/env.ts:21-29`. NOT react-native-dotenv.
 - **Form validation** (Phase 5): Zod + react-hook-form. Errors render only after field interaction (touchedFields pattern).
 - **AccessibilityEngine** + **DashboardEventMiddleware** must be `initialize()`'d at startup (done in `app/index.tsx:19-22` for `__DEV__`, needs call for production).
-- **Only 3 test files** exist (`__tests__/accessibility/VoiceQueue.test.ts`, `__tests__/accessibility/SpeechController.test.ts`, `__tests__/App.test.tsx`). Dashboard widgets and dev harness have zero tests.
+- **7 test files** exist: 3 accessibility + App tests, 4 BLE test suites (bleSlice 15, BLEPacketParser 14, BLEReconnectionManager 7, BLEManager integration). Dashboard widgets and dev harness have zero tests.
 - **`Design.json`** at repo root is the formal architecture design reference (layers, event list, states, design tokens).
 - **~46 lint warnings** (unused imports, `any` types). Pre-commit rejects them (`--max-warnings=0`).
 - **`@tanstack/react-query`** in deps but minimally used. **`react-native-gesture-handler`** wraps app root.

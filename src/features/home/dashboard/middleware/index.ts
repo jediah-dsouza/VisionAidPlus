@@ -3,12 +3,15 @@ import { store } from '@app/store';
 import { bleActions } from '@app/store/slices/bleSlice';
 import { aiActions } from '@app/store/slices/aiSlice';
 import { emergencyActions } from '@app/store/slices/emergencySlice';
+import type { BLEDevice } from '@core/ble';
 
 interface DashboardEventMap {
-  [EVENTS.BLE_DEVICE_CONNECTED]: { deviceId: string; deviceName: string };
+  [EVENTS.BLE_DEVICE_CONNECTED]: { deviceId: string; deviceName: string; rssi?: number };
   [EVENTS.BLE_DEVICE_DISCONNECTED]: Record<string, never>;
+  [EVENTS.BLE_DEVICE_RECONNECTING]: { deviceId: string; attempt: number; maxAttempts: number };
   [EVENTS.BLE_SIGNAL_WEAK]: { rssi: number };
-  [EVENTS.BLE_ERROR]: { error: string };
+  [EVENTS.BLE_ERROR]: { error: string; deviceId?: string; code?: number };
+  [EVENTS.LOW_BATTERY_WARNING]: { level?: number; chargingStatus?: string; state?: string };
   [EVENTS.AI_OBSTACLE_DETECTED]: {
     type: string;
     distance: number;
@@ -73,8 +76,15 @@ class DashboardEventMiddleware {
         handler: payload => {
           console.log('[DashboardMiddleware] 📡 BLE_DEVICE_CONNECTED received:', payload);
           const data = payload as DashboardEventMap[typeof EVENTS.BLE_DEVICE_CONNECTED];
-          store.dispatch(bleActions.setStatus('connected'));
-          store.dispatch(bleActions.setConnectedDevice(data.deviceId));
+          if (data.deviceId) {
+            store.dispatch(bleActions.setConnectionState('connected'));
+            store.dispatch(bleActions.setStatus('connected'));
+            store.dispatch(bleActions.setConnectedDevice({ id: data.deviceId, name: data.deviceName || data.deviceId }));
+            if (data.rssi) {
+              store.dispatch(bleActions.setSignalStrength(data.rssi));
+            }
+            store.dispatch(bleActions.setScanning(false));
+          }
           console.log('[DashboardMiddleware] ✅ Dispatched BLE connected actions');
         },
         priority: 'high',
@@ -83,8 +93,11 @@ class DashboardEventMiddleware {
         event: EVENTS.BLE_DEVICE_DISCONNECTED,
         handler: () => {
           console.log('[DashboardMiddleware] 📡 BLE_DEVICE_DISCONNECTED received');
+          store.dispatch(bleActions.setConnectionState('disconnected'));
           store.dispatch(bleActions.setStatus('disconnected'));
           store.dispatch(bleActions.setConnectedDevice(null));
+          store.dispatch(bleActions.setSignalStrength(-127));
+          store.dispatch(bleActions.setScanning(false));
           console.log('[DashboardMiddleware] ✅ Dispatched BLE disconnected actions');
         },
         priority: 'high',
@@ -103,7 +116,33 @@ class DashboardEventMiddleware {
         event: EVENTS.BLE_ERROR,
         handler: payload => {
           const data = payload as DashboardEventMap[typeof EVENTS.BLE_ERROR];
+          store.dispatch(bleActions.setConnectionState('error'));
           store.dispatch(bleActions.setError(data.error));
+        },
+        priority: 'high',
+      },
+      {
+        event: EVENTS.LOW_BATTERY_WARNING,
+        handler: payload => {
+          const data = payload as DashboardEventMap[typeof EVENTS.LOW_BATTERY_WARNING];
+          if (data.level !== undefined) {
+            store.dispatch(bleActions.setBatteryLevel(data.level));
+          }
+          if (data.chargingStatus) {
+            store.dispatch(bleActions.setChargingStatus(data.chargingStatus as 'charging' | 'discharging' | 'full'));
+          }
+          console.log('[DashboardMiddleware] 📡 LOW_BATTERY_WARNING received:', payload);
+        },
+        priority: 'high',
+      },
+      {
+        event: EVENTS.BLE_DEVICE_RECONNECTING,
+        handler: payload => {
+          const data = payload as DashboardEventMap[typeof EVENTS.BLE_DEVICE_RECONNECTING];
+          store.dispatch(bleActions.setConnectionState('reconnecting'));
+          store.dispatch(bleActions.setReconnectAttempts(data.attempt));
+          store.dispatch(bleActions.setStatus('reconnecting'));
+          console.log('[DashboardMiddleware] 📡 BLE_DEVICE_RECONNECTING received:', payload);
         },
         priority: 'high',
       },
