@@ -11,6 +11,14 @@ import { store } from '@app/store';
 import { bleActions } from '@app/store/slices/bleSlice';
 import { aiActions } from '@app/store/slices/aiSlice';
 import { emergencyActions } from '@app/store/slices/emergencySlice';
+import {
+  emergencyManager,
+  emergencyCountdownManager,
+  emergencyContactManager,
+  emergencyGPSPipeline,
+  emergencySMSPipeline,
+  EMERGENCY_EVENTS,
+} from '@core/emergency';
 import { accessibilityEngine } from '@core/accessibility';
 import { blePacketParser, BLE_CHARACTERISTIC_UUIDS } from '@core/ble';
 import { devPacketMonitor } from './DevPacketMonitor';
@@ -394,6 +402,105 @@ class DevSimulationEngine {
     );
   }
 
+  simulateFullEmergencyLifecycle(): void {
+    const sessionId = `sim_${Date.now()}`;
+
+    this.simulate(
+      EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_STARTED,
+      { duration: 5, startedAt: Date.now() },
+      'critical',
+      'Emergency countdown started',
+      () => {
+        store.dispatch(emergencyActions.startCountdown(5));
+        store.dispatch(emergencyActions.triggerEmergency({ sessionId }));
+      },
+    );
+
+    setTimeout(() => {
+      store.dispatch(emergencyActions.setSending());
+      store.dispatch(emergencyActions.setGpsCoordinates({ latitude: 40.7128, longitude: -74.006 }));
+      store.dispatch(emergencyActions.setSmsSent(3));
+      store.dispatch(emergencyActions.incrementContactsNotified(3));
+
+      this.simulate(
+        EMERGENCY_EVENTS.EMERGENCY_SENDING,
+        { contactCount: 3, timestamp: Date.now() },
+        'critical',
+        'Sending emergency alerts',
+      );
+    }, 2000);
+
+    setTimeout(() => {
+      store.dispatch(emergencyActions.saveSessionToHistory());
+      store.dispatch(emergencyActions.resolveEmergency());
+      store.dispatch(emergencyActions.setEscalationAttempts(0));
+    }, 4000);
+
+    setTimeout(() => {
+      store.dispatch(emergencyActions.resetEmergency());
+    }, 6000);
+  }
+
+  simulateEmergencyEscalation(): void {
+    store.dispatch(emergencyActions.triggerEmergency(undefined));
+    store.dispatch(emergencyActions.setSending());
+    store.dispatch(emergencyActions.setEscalationAttempts(1));
+
+    this.simulate(
+      EMERGENCY_EVENTS.EMERGENCY_ESCALATED,
+      { attempt: 1, timestamp: Date.now() },
+      'critical',
+      'Emergency escalated',
+    );
+  }
+
+  simulateEmergencyResolve(): void {
+    store.dispatch(emergencyActions.saveSessionToHistory());
+    store.dispatch(emergencyActions.resolveEmergency());
+    this.simulate(
+      EMERGENCY_EVENTS.EMERGENCY_RESOLVED,
+      { resolvedAt: Date.now(), duration: 30000 },
+      'high',
+      'Emergency resolved',
+      () => {
+        setTimeout(() => store.dispatch(emergencyActions.resetEmergency()), 5000);
+      },
+    );
+  }
+
+  simulateEmergencyContactNotification(): void {
+    const contactId = `contact_sim_${Date.now()}`;
+    emergencyContactManager.addContact({
+      name: 'Jane Doe',
+      phone: '+1-555-0100',
+      relationship: 'Spouse',
+      isPrimary: true,
+      notifyOnEmergency: true,
+    }).then(contact => {
+      store.dispatch(emergencyActions.addContact(contact));
+      this.simulate(
+        EMERGENCY_EVENTS.EMERGENCY_SEND_SUCCESS,
+        { contactId: contact.id, method: 'sms' },
+        'normal',
+        `Contact notified: ${contact.name}`,
+        () => store.dispatch(emergencyActions.incrementContactsNotified(1)),
+      );
+    });
+  }
+
+  simulateEmergencyGPS(): void {
+    const location = { latitude: 40.7128, longitude: -74.006 };
+    emergencyGPSPipeline.setMockLocation(location.latitude, location.longitude);
+    store.dispatch(emergencyActions.setGpsCoordinates(location));
+
+    this.simulate(
+      EMERGENCY_EVENTS.EMERGENCY_GPS_PREPARED,
+      { ...location, accuracy: 10 },
+      'normal',
+      'GPS location acquired',
+    );
+  }
+
   // ========================================================================
   // NAVIGATION SIMULATIONS
   // ========================================================================
@@ -478,6 +585,35 @@ class DevSimulationEngine {
     setTimeout(() => this.stopStressTest(), durationMs);
   }
 
+  startEmergencyStressTest(durationMs: number = 20000): void {
+    if (!IS_DEV) return;
+
+    console.log(`[DevSim] 🚨 Starting EMERGENCY stress test for ${durationMs}ms`);
+    this.isStressTesting = true;
+
+    let phase = 0;
+
+    this.stressTestInterval = setInterval(() => {
+      switch (phase % 4) {
+        case 0:
+          this.simulateEmergencyTriggered();
+          break;
+        case 1:
+          this.simulateFullEmergencyLifecycle();
+          break;
+        case 2:
+          this.simulateEmergencyContactNotification();
+          break;
+        case 3:
+          this.simulateEmergencyCancelled();
+          break;
+      }
+      phase++;
+    }, 3000);
+
+    setTimeout(() => this.stopStressTest(), durationMs);
+  }
+
   startPacketFloodTest(durationMs: number = 5000, packetsPerSecond: number = 50): void {
     if (!IS_DEV) return;
 
@@ -520,6 +656,30 @@ class DevSimulationEngine {
 
     if (emergency.status === 'countdown' && emergency.countdownRemaining <= 0) {
       issues.push('Countdown reached zero without triggering');
+    }
+
+    if (emergency.status === 'triggered' && !emergency.triggeredAt) {
+      issues.push('Triggered state without triggeredAt timestamp');
+    }
+
+    if (emergency.status === 'sending' && !emergency.triggeredAt) {
+      issues.push('Sending state without triggeredAt timestamp');
+    }
+
+    if (emergency.status === 'sending' && emergency.contacts.length === 0) {
+      issues.push('Sending alerts but no contacts configured');
+    }
+
+    if (emergency.triggeredAt && emergency.resolvedAt) {
+      const triggered = new Date(emergency.triggeredAt).getTime();
+      const resolved = new Date(emergency.resolvedAt).getTime();
+      if (resolved < triggered) {
+        issues.push('resolvedAt before triggeredAt');
+      }
+    }
+
+    if (emergency.countdownRemaining < 0) {
+      issues.push('Negative countdown remaining');
     }
 
     return { valid: issues.length === 0, issues };

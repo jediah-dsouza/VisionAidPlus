@@ -3,6 +3,7 @@ import { store } from '@app/store';
 import { bleActions } from '@app/store/slices/bleSlice';
 import { aiActions } from '@app/store/slices/aiSlice';
 import { emergencyActions } from '@app/store/slices/emergencySlice';
+import { EMERGENCY_EVENTS } from '@core/emergency';
 import type { BLEDevice } from '@core/ble';
 
 interface DashboardEventMap {
@@ -31,6 +32,15 @@ interface DashboardEventMap {
   [EVENTS.AI_ERROR]: { error: string };
   [EVENTS.EMERGENCY_TRIGGERED]: Record<string, never>;
   [EVENTS.EMERGENCY_CANCELLED]: Record<string, never>;
+  [EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_STARTED]: { duration: number; startedAt: number };
+  [EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_TICK]: { remaining: number; elapsed: number };
+  [EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_CANCELLED]: { remaining: number; cancelledAt: number };
+  [EMERGENCY_EVENTS.EMERGENCY_SENDING]: { contactCount: number; timestamp: number };
+  [EMERGENCY_EVENTS.EMERGENCY_SEND_SUCCESS]: { contactId: string; method: string };
+  [EMERGENCY_EVENTS.EMERGENCY_SEND_FAILED]: { contactId: string; error: string; method: string };
+  [EMERGENCY_EVENTS.EMERGENCY_ESCALATED]: { attempt: number; timestamp: number };
+  [EMERGENCY_EVENTS.EMERGENCY_RESOLVED]: { resolvedAt: number; duration: number };
+  [EMERGENCY_EVENTS.EMERGENCY_RECOVERY]: { timestamp: number };
 }
 
 type EventKey = keyof DashboardEventMap;
@@ -221,8 +231,8 @@ class DashboardEventMiddleware {
         event: EVENTS.EMERGENCY_TRIGGERED,
         handler: () => {
           console.log('[DashboardMiddleware] 📡 EMERGENCY_TRIGGERED received');
-          store.dispatch(emergencyActions.startCountdown(5));
-          console.log('[DashboardMiddleware] ✅ Dispatched emergency trigger actions');
+          store.dispatch(emergencyActions.triggerEmergency(undefined));
+          store.dispatch(emergencyActions.setSending());
         },
         priority: 'critical',
       },
@@ -231,9 +241,71 @@ class DashboardEventMiddleware {
         handler: () => {
           console.log('[DashboardMiddleware] 📡 EMERGENCY_CANCELLED received');
           store.dispatch(emergencyActions.cancelEmergency());
-          console.log('[DashboardMiddleware] ✅ Dispatched emergency cancel actions');
         },
         priority: 'high',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_STARTED,
+        handler: (payload: unknown) => {
+          const data = payload as DashboardEventMap[typeof EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_STARTED];
+          store.dispatch(emergencyActions.startCountdown(data.duration));
+        },
+        priority: 'critical',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_TICK,
+        handler: (payload: unknown) => {
+          const data = payload as DashboardEventMap[typeof EMERGENCY_EVENTS.EMERGENCY_COUNTDOWN_TICK];
+          store.dispatch(emergencyActions.updateCountdown(data.remaining));
+        },
+        priority: 'high',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_SENDING,
+        handler: () => {
+          store.dispatch(emergencyActions.setSending());
+        },
+        priority: 'critical',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_SEND_SUCCESS,
+        handler: () => {
+          store.dispatch(emergencyActions.incrementContactsNotified(1));
+        },
+        priority: 'normal',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_SEND_FAILED,
+        handler: () => {
+          store.dispatch(emergencyActions.incrementContactsFailed(1));
+        },
+        priority: 'high',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_ESCALATED,
+        handler: (payload: unknown) => {
+          const data = payload as DashboardEventMap[typeof EMERGENCY_EVENTS.EMERGENCY_ESCALATED];
+          store.dispatch(emergencyActions.setEscalationAttempts(data.attempt));
+        },
+        priority: 'critical',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_RESOLVED,
+        handler: () => {
+          store.dispatch(emergencyActions.saveSessionToHistory());
+          store.dispatch(emergencyActions.resolveEmergency());
+          setTimeout(() => {
+            store.dispatch(emergencyActions.resetEmergency());
+          }, 5000);
+        },
+        priority: 'high',
+      },
+      {
+        event: EMERGENCY_EVENTS.EMERGENCY_RECOVERY,
+        handler: () => {
+          store.dispatch(emergencyActions.resetEmergency());
+        },
+        priority: 'normal',
       },
     ];
 

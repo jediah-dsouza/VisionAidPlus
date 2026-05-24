@@ -12,16 +12,21 @@ import { navigationGuard } from './navigation/utils/navigationGuards';
 import env from '../env';
 import { logger } from '@core/debug';
 
-// DEV ONLY: Initialize dashboard event middleware
+// Initialize dashboard event middleware and emergency systems
 import { dashboardEventMiddleware } from '@features/home/dashboard/middleware';
 import { accessibilityEngine } from '@core/accessibility';
 import { bleManager } from '@core/ble';
+import { emergencyManager } from '@core/emergency';
 if (__DEV__) {
   accessibilityEngine.initialize();
   logger.debug('AccessibilityEngine initialized');
   dashboardEventMiddleware.initialize();
   logger.debug('Dashboard event middleware initialized');
 }
+
+// Initialize Emergency Manager (always - critical safety subsystem)
+emergencyManager.initialize();
+logger.debug('[App] EmergencyManager initialized');
 
 // Initialize BLE Manager
 bleManager.initialize({

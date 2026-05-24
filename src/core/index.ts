@@ -40,3 +40,28 @@ export type { ErrorContext, ErrorReport } from './error/ErrorHandler';
 
 export { logger } from './debug/index';
 export type { LogLevel } from './debug/index';
+
+export {
+  emergencyStateMachine,
+  emergencyCountdownManager,
+  emergencyEventPriorityManager,
+  emergencyGPSPipeline,
+  emergencySMSPipeline,
+  emergencyContactManager,
+  emergencyManager,
+  EMERGENCY_EVENTS,
+} from './emergency';
+export type {
+  EmergencyStatus,
+  EmergencyEvent,
+  CountdownConfig,
+  CountdownState,
+  EmergencyEventKey,
+  EmergencyEventPayloads,
+  GPSLocation,
+  GPSConfig,
+  SMSMessage,
+  SMSConfig,
+  EmergencySession,
+  EmergencyManagerConfig,
+} from './emergency';
