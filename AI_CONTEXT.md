@@ -81,3 +81,25 @@ Validation:
 
 Current Stable Branch:
 phase-13-analytics-complete
+
+## Phase 15 Complete — Performance Hardening
+
+Validation:
+- 893/893 tests passing
+- 0 TypeScript errors
+
+Major Optimizations:
+- memoized selectors
+- BLE throttling/debounce
+- EventBus cleanup hardening
+- analytics batching/ring buffers
+- render reduction
+- timeout tracking cleanup
+- interval cleanup hardening
+- production log gating
+
+Stable Branch:
+phase-15-performance-stable
+
+Tag:
+v1.1-performance-hardened

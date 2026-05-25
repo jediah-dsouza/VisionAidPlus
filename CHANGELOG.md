@@ -114,6 +114,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All existing architecture preserved — no rewrites, no `@ts-ignore`, no test deletions
 - Accessibility systems, EventBus hierarchy, emergency priority systems fully intact
 
+#### Phase 15 — Performance Hardening (2026-05-25)
+
+**Audit & Analysis:**
+
+- Conducted comprehensive performance audit across 7 focus areas: Redux selectors (58 inline, zero memoized), EventBus (81 publish() calls, console.log + JSON.stringify on every hot-path publish, O(n log n) subscribe, never-consumed event queue), BLE (double packet parsing, redundant double-emit in updateRSSI, untracked setTimeout x3), timer/subscription cleanup (DashboardEventMiddleware.destroy never called, 18 subs leak in useVoiceAssistant, 5 instances in useCamera), analytics pipeline (onBatchReady/onAnalyticsEvent never assigned — data flows to void, O(n) shift(), 100-insert spatial rebuild)
+- Categorized all bottlenecks by severity: 8 Critical, 9 High, 8 Medium
+- Defined 13 numbered fixes in priority order
+
+**Critical/High Priority Fixes:**
+
+- **Fix #1 — Memoized selectors**: Created `src/app/store/selectors.ts` with 20+ `createSelector`-based selectors for auth, settings, BLE widget, device status, AI status, emergency, home summary, and analytics slices with fallback-safe defaults. Eliminates 58 inline selector re-creations on every render.
+- **Fix #2 — Destroy middleware on teardown**: Added `useEffect(() => () => dashboardEventMiddleware.destroy())` in `app/index.tsx` — 18 EventBus subscriptions now cleaned up on app unmount.
+- **Fix #3 — Gate EventBus console.log**: All publish/subscribe/unsubscribe console.log calls in `EventBus.ts` wrapped in `__DEV__` guard — removes 7 console.log + JSON.stringify calls from the publish hot path in production.
+- **Fix #4 — Eliminate BLE double-parsing**: Removed redundant `blePacketParser.parseRaw()` + `parse()` calls in `BLESubscriptionManager.simulateNotification()` — handler already parses the raw data once.
+- **Fix #5 — Hook cleanup**: Added `destroy()` calls in `useEffect` return of `useVoiceAssistant` (10 class instances: TTSIntegrationLayer, SpeechLifecycleManager, SpeechQueueManager, SpeechDeduplicationEngine, CommandHistoryRegistry, PushToTalkLayer, WaveformPipeline, HapticSynchronizer, VoiceMetricsCollector) and `useCamera` (5 instances: CameraLifecycleManager, FrameThrottleController, FrameMetricsCollector, FramePipelineCoordinator, DetectionSessionManager). Captures ref values locally to satisfy `react-hooks/exhaustive-deps`.
+- **Fix #6 — Export screen interval cleanup**: Added `intervalRef` with `useEffect` cleanup in `AnalyticsExportScreen` — prevents setInterval leak on unmount.
+- **Fix #7 — Narrow AppNavigator selectors**: Changed `useAppSelector(state => state.auth)` → `selectAuthIsAuthenticated` and `state.settings` → `selectSettingsHasCompletedOnboarding` — now selects only boolean fields instead of entire slices.
+- **Fix #8 — BLE timer/RSSI fixes**: Applied `RSSI_UPDATE_DEBOUNCE_MS` (200ms, previously dead constant) to throttle RSSI publishes in `updateRSSI()`. Eliminated redundant double-emit: removed unconditional publish, now only publishes on threshold cross. Tracked `errorRecoveryTimer` and `mockDisconnectTimer` (previously untracked `setTimeout` calls) with cleanup in `destroy()`. Cleared `connectTimer` on successful mock connect to prevent false timeout.
+
+**Medium Priority Fixes:**
+
+- **Fix #9 — Remove unused EventBus queue**: Removed `eventQueue`, `maxQueueSize` config, `getQueue()`, and `clearQueue()` — maintained as backward-compatible no-ops for test compatibility.
+- **Fix #10 — Reduce spatial index rebuild frequency**: Changed `SPATIAL_REBUILD_INTERVAL` from 100 to 500 in `HistoricalEventIndexer` — 80% reduction in CPU waste.
+- **Fix #11 — Ring-buffer performance monitor**: Replaced O(n) `push()` + `shift()` pattern in `AnalyticsPerformanceMonitor` with fixed-size ring buffer (`Array(ROLLING_WINDOW_SIZE)` + modular index) for O(1) insert/evict. Gated console.log behind `__DEV__`.
+- **Fix #12 — Gate dashboard middleware logging**: Wrapped all ~20 console.log calls in `DashboardEventMiddleware` (initialization, subscribe, BLE/AI/emergency handlers) behind `__DEV__` guard.
+- **Fix #13 — Wire analytics pipeline**: Connected `AnalyticsEventBridge.onAnalyticsEvent` → `analyticsBatchProcessor.enqueue()` and `analyticsBatchProcessor.onBatchReady` → `analyticsEventPipeline.ingest()` in `app/index.tsx`. Added singleton `analyticsEventBridge` export from `AnalyticsEventBridge.ts`. Previously data flowed to void (callbacks never assigned).
+
+**Validation Results:**
+
+- 0 TypeScript errors preserved
+- 893/893 tests passing across 93 suites (100%)
+- All architecture, accessibility, emergency priority, BLE reliability, and realtime guarantees preserved
+
 ### Fixed
 
 #### Phase 13 — Analytics & Alert History (2026-05-25)

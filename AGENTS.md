@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 14 — Settings & Customization (complete ✅)
+**Current Phase**: 15 — Performance Hardening (complete ✅)
 **Next**: TBD
 
 **Pre-existing issues** (don't waste time investigating):
