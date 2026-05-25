@@ -36,7 +36,10 @@ export class BLEConnectionManager {
   private stateChangeHandlers: Set<ConnectionStateChangeHandler> = new Set();
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private errorRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  private mockDisconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private rssiTimer: ReturnType<typeof setInterval> | null = null;
+  private lastRssiPublishTime = 0;
   private destroyed = false;
   private deviceRef: BLEDevice | null = null;
 
@@ -127,7 +130,8 @@ export class BLEConnectionManager {
     }, BLE_LIMITS.DISCONNECT_TIMEOUT_MS);
 
     if (env.MOCK_BLE_DEVICE) {
-      setTimeout(() => {
+      this.mockDisconnectTimer = setTimeout(() => {
+        this.mockDisconnectTimer = null;
         this.transitionTo('disconnected');
         this.finalizeDisconnect(reason);
       }, 300);
@@ -157,15 +161,20 @@ export class BLEConnectionManager {
   }
 
   updateRSSI(rssi: number): void {
+    const now = Date.now();
+    if (now - this.lastRssiPublishTime < BLE_LIMITS.RSSI_UPDATE_DEBOUNCE_MS) return;
+    this.lastRssiPublishTime = now;
+
     const oldRssi = this.connectionInfo.rssi;
     this.connectionInfo.rssi = rssi;
 
-    eventBus.publish(EVENTS.BLE_SIGNAL_WEAK, { rssi }, rssi <= BLE_LIMITS.SIGNAL_CRITICAL_THRESHOLD ? 'high' : 'normal');
+    const wasWeak = oldRssi <= BLE_LIMITS.SIGNAL_WEAK_THRESHOLD;
+    const isWeak = rssi <= BLE_LIMITS.SIGNAL_WEAK_THRESHOLD;
 
     if (rssi <= BLE_LIMITS.SIGNAL_CRITICAL_THRESHOLD && oldRssi > BLE_LIMITS.SIGNAL_CRITICAL_THRESHOLD) {
       eventBus.publish(EVENTS.BLE_SIGNAL_WEAK, { rssi }, 'high');
       logger.warn(`[BLEConnection] Signal critical: ${rssi}dBm`);
-    } else if (rssi <= BLE_LIMITS.SIGNAL_WEAK_THRESHOLD && oldRssi > BLE_LIMITS.SIGNAL_WEAK_THRESHOLD) {
+    } else if (isWeak && !wasWeak) {
       eventBus.publish(EVENTS.BLE_SIGNAL_WEAK, { rssi }, 'normal');
       logger.warn(`[BLEConnection] Signal weak: ${rssi}dBm`);
     }
@@ -212,6 +221,11 @@ export class BLEConnectionManager {
           batteryLevel: 85,
           lastSeen: Date.now(),
         };
+
+        if (this.connectTimer) {
+          clearTimeout(this.connectTimer);
+          this.connectTimer = null;
+        }
 
         this.transitionTo('connected');
 
@@ -273,7 +287,8 @@ export class BLEConnectionManager {
 
     logger.error(`[BLEConnection] Error: ${message}`);
 
-    setTimeout(() => {
+    this.errorRecoveryTimer = setTimeout(() => {
+      this.errorRecoveryTimer = null;
       if (this.state === 'error') {
         this.transitionTo('idle');
       }
@@ -302,6 +317,16 @@ export class BLEConnectionManager {
     if (this.disconnectTimer) {
       clearTimeout(this.disconnectTimer);
       this.disconnectTimer = null;
+    }
+
+    if (this.errorRecoveryTimer) {
+      clearTimeout(this.errorRecoveryTimer);
+      this.errorRecoveryTimer = null;
+    }
+
+    if (this.mockDisconnectTimer) {
+      clearTimeout(this.mockDisconnectTimer);
+      this.mockDisconnectTimer = null;
     }
 
     this.stateChangeHandlers.clear();

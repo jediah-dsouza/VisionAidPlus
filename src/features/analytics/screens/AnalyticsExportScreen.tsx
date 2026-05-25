@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import type { ExportFormat } from '@core/analytics/types';
 
 export const AnalyticsExportScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const alertHistory = useAppSelector(state => state.analytics?.alertHistory ?? []);
   const exportProgress = useAppSelector(state => state.analytics?.exportProgress ?? {
     isExporting: false,
@@ -22,6 +23,15 @@ export const AnalyticsExportScreen: React.FC = () => {
     totalRecords: 0,
     error: null,
   });
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
 
   const [format, setFormat] = useState<ExportFormat>('json');
   const [dateRange, setDateRange] = useState<{ start: number; end?: number }>({
@@ -46,10 +56,11 @@ export const AnalyticsExportScreen: React.FC = () => {
     );
 
     let progress = 0;
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       progress += Math.ceil(total / 10);
       if (progress >= total) {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
         dispatch(
           analyticsSlice.actions.setExportProgress({
             isExporting: false,

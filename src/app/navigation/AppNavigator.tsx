@@ -2,6 +2,10 @@ import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { useAppSelector, useAppDispatch } from '@app/store';
+import {
+  selectAuthIsAuthenticated,
+  selectSettingsHasCompletedOnboarding,
+} from '@app/store/selectors';
 
 import type { RootStackParamList } from './types/navigation';
 import { getModalScreenOptions } from './utils/navigationConfig';
@@ -49,8 +53,8 @@ export const AppNavigator: React.FC = () => {
     }
   }, [dispatch]);
 
-  const { isAuthenticated } = useAppSelector(state => state.auth);
-  const { hasCompletedOnboarding } = useAppSelector(state => state.settings);
+  const isAuthenticated = useAppSelector(selectAuthIsAuthenticated);
+  const hasCompletedOnboarding = useAppSelector(selectSettingsHasCompletedOnboarding);
 
   const getInitialRoute = (): keyof RootStackParamList => {
     // DEV ONLY: Skip auth flow if bypass is enabled

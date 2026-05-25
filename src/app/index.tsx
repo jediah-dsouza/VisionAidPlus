@@ -18,6 +18,8 @@ import { accessibilityEngine } from '@core/accessibility';
 import { bleManager } from '@core/ble';
 import { emergencyManager } from '@core/emergency';
 import { navigationManager } from '@core/live-navigation';
+import { analyticsEventBridge, analyticsBatchProcessor, analyticsEventPipeline } from '@core/analytics';
+import { eventBus } from '@core/events/EventBus';
 
 if (__DEV__) {
   accessibilityEngine.initialize();
@@ -46,6 +48,16 @@ logger.debug('[App] BLEManager initialized');
 // Initialize NavigationManager
 navigationManager.initialize();
 logger.debug('[App] NavigationManager initialized');
+
+// Initialize Analytics pipeline
+analyticsEventBridge.onAnalyticsEvent = event => {
+  analyticsBatchProcessor.enqueue(event);
+};
+analyticsBatchProcessor.onBatchReady = batch => {
+  batch.forEach(event => analyticsEventPipeline.ingest(event));
+};
+analyticsEventBridge.connect(eventBus);
+logger.debug('[App] Analytics pipeline initialized');
 
 // [DIAGNOSTIC] Store identity at Provider site
 const providerStoreId = (store as any).__REDUX_STORE_ID__;
@@ -121,6 +133,12 @@ const NavigationWrapper: React.FC = () => {
 
 const App: React.FC = () => {
   logger.debug('App initializing', { environment: env.ENVIRONMENT });
+
+  useEffect(() => {
+    return () => {
+      dashboardEventMiddleware.destroy();
+    };
+  }, []);
 
   const appStoreId = (store as any).__REDUX_STORE_ID__;
   const appGlobalStore = (globalThis as any).__VISIONAID_STORE__;

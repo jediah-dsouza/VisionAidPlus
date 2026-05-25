@@ -10,7 +10,6 @@ interface EventSubscription {
 }
 
 interface EventBusConfig {
-  maxQueueSize: number;
   defaultPriority: EventPriority;
 }
 
@@ -26,7 +25,6 @@ let eventBusInstanceCounter = 0;
 export class EventBus {
   private instanceId: number;
   private subscriptions: Map<string, EventSubscription[]> = new Map();
-  private eventQueue: Array<{ event: string; payload: unknown; priority: EventPriority }> = [];
   private config: EventBusConfig;
   private subscriptionId = 0;
   private lastPublishTime: Map<string, number> = new Map();
@@ -35,10 +33,10 @@ export class EventBus {
   constructor(config: Partial<EventBusConfig> = {}) {
     eventBusInstanceCounter++;
     this.instanceId = eventBusInstanceCounter;
-    console.log(`[EventBus] 🚀 INSTANCE ${this.instanceId} CREATED`);
-    console.log(`[EventBus] Stack trace:`, new Error().stack);
+    if (__DEV__) {
+      console.log(`[EventBus] 🚀 INSTANCE ${this.instanceId} CREATED`);
+    }
     this.config = {
-      maxQueueSize: config.maxQueueSize ?? 100,
       defaultPriority: config.defaultPriority ?? 'normal',
     };
   }
@@ -66,8 +64,9 @@ export class EventBus {
     );
     this.subscriptions.set(event, withPriority);
 
-    console.log(`[EventBus#${this.instanceId}] ✅ SUBSCRIBED: ${event} (${withPriority.length} total handlers)`);
-    console.log(`[EventBus#${this.instanceId}] All subscriptions:`, Array.from(this.subscriptions.keys()));
+    if (__DEV__) {
+      console.log(`[EventBus#${this.instanceId}] ✅ SUBSCRIBED: ${event} (${withPriority.length} total handlers)`);
+    }
 
     return () => {
       const subs = this.subscriptions.get(event);
@@ -78,7 +77,9 @@ export class EventBus {
         } else {
           this.subscriptions.set(event, remaining);
         }
-        console.log(`[EventBus#${this.instanceId}] UNSUBSCRIBED: ${event}`);
+        if (__DEV__) {
+          console.log(`[EventBus#${this.instanceId}] UNSUBSCRIBED: ${event}`);
+        }
       }
     };
   }
@@ -94,26 +95,24 @@ export class EventBus {
 
     this.lastPublishTime.set(event, now);
 
-    console.log(`[EventBus#${this.instanceId}] 📤 PUBLISH: ${event}`, { priority: resolvedPriority });
-    console.log(`[EventBus#${this.instanceId}] All subscriptions:`, Array.from(this.subscriptions.keys()));
+    if (__DEV__) {
+      console.log(`[EventBus#${this.instanceId}] 📤 PUBLISH: ${event}`, { priority: resolvedPriority });
+    }
 
     const subscription = this.subscriptions.get(event);
     if (subscription) {
-      console.log(`[EventBus#${this.instanceId}] ✅ ${subscription.length} handler(s) for ${event}`);
+      if (__DEV__) {
+        console.log(`[EventBus#${this.instanceId}] ✅ ${subscription.length} handler(s) for ${event}`);
+      }
       subscription.forEach(sub => {
         try {
-          console.log(`[EventBus#${this.instanceId}] → Calling handler for ${event}`);
           sub.handler(payload);
         } catch (error) {
           console.error(`[EventBus#${this.instanceId}] Handler error for ${event}:`, error);
         }
       });
-    } else {
+    } else if (__DEV__) {
       console.log(`[EventBus#${this.instanceId}] ⚠️ NO HANDLERS for ${event}`);
-    }
-
-    if (this.eventQueue.length < this.config.maxQueueSize) {
-      this.eventQueue.push({ event, payload, priority: resolvedPriority });
     }
   }
 
@@ -129,11 +128,10 @@ export class EventBus {
   }
 
   getQueue(): ReadonlyArray<{ event: string; payload: unknown; priority: EventPriority }> {
-    return this.eventQueue;
+    return [];
   }
 
   clearQueue(): void {
-    this.eventQueue = [];
   }
 
   removeAllListeners(event?: string): void {

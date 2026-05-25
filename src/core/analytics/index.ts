@@ -18,6 +18,6 @@ export { AnalyticsExportPreparationLayer } from './AnalyticsExportPreparationLay
 export { AlertDeduplicationLayer } from './AlertDeduplicationLayer';
 export { AnalyticsAccessibilityChartCoordinator } from './AnalyticsAccessibilityChartCoordinator';
 export { AnalyticsRenderingOptimizer } from './AnalyticsRenderingOptimizer';
-export { AnalyticsEventBridge } from './AnalyticsEventBridge';
+export { AnalyticsEventBridge, analyticsEventBridge } from './AnalyticsEventBridge';
 export { ANALYTICS_EVENTS } from './AnalyticsEvents';
 export * from './types';

@@ -126,3 +126,5 @@ export class AnalyticsEventBridge {
     console.log('[AnalyticsEventBridge] Destroyed');
   }
 }
+
+export const analyticsEventBridge = new AnalyticsEventBridge();

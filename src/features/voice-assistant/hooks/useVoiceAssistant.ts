@@ -60,11 +60,30 @@ export const useVoiceAssistant = (): UseVoiceAssistantResult => {
 
   useEffect(() => {
     mountedRef.current = true;
-    ttsBridgeRef.current.initialize();
-    metricsRef.current.startAutoReporting(60000);
+    const ttsBridge = ttsBridgeRef.current;
+    const lifecycle = lifecycleRef.current;
+    const queue = queueRef.current;
+    const dedup = dedupRef.current;
+    const history = historyRef.current;
+    const ptt = pttRef.current;
+    const waveform = waveformRef.current;
+    const haptic = hapticRef.current;
+    const metrics = metricsRef.current;
+
+    ttsBridge.initialize();
+    metrics.startAutoReporting(60000);
 
     return () => {
       mountedRef.current = false;
+      ttsBridge.destroy?.();
+      lifecycle.destroy?.();
+      queue.destroy?.();
+      dedup.destroy?.();
+      history.destroy?.();
+      ptt.destroy?.();
+      waveform.destroy?.();
+      haptic.destroy?.();
+      metrics.stopAutoReporting?.();
     };
   }, []);
 

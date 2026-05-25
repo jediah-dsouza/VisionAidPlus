@@ -7,7 +7,7 @@ interface ListNode {
 }
 
 const MAX_ENTRIES = 10_000;
-const SPATIAL_REBUILD_INTERVAL = 100;
+const SPATIAL_REBUILD_INTERVAL = 500;
 
 export class HistoricalEventIndexer {
   private head: ListNode | null = null;

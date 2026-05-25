@@ -147,13 +147,6 @@ export class BLESubscriptionManager {
       return;
     }
 
-    const rawString = blePacketParser.parseRaw(
-      '0000FFE0-0000-1000-8000-00805F9B34FB',
-      characteristicUUID,
-      data,
-    );
-    const parsed = blePacketParser.parse(characteristicUUID, rawString);
-
     this.activeMonitors.forEach(monitor => {
       monitor.handler(data);
     });

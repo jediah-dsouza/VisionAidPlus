@@ -46,11 +46,22 @@ export const useCamera = (): UseCameraResult => {
       if (mountedRef.current) setViewState(prev => ({ ...prev, error: message }));
     });
 
+    const lifecycle = lifecycleRef.current;
+    const throttle = throttleRef.current;
+    const frameMetrics = metricsRef.current;
+    const pipeline = pipelineRef.current;
+    const session = sessionRef.current;
+
     return () => {
       mountedRef.current = false;
       unsub1();
       unsub2();
       unsub3();
+      lifecycle.destroy?.();
+      throttle.destroy?.();
+      frameMetrics.destroy?.();
+      pipeline.destroy?.();
+      session.destroy?.();
     };
   }, []);
 
