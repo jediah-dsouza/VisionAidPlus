@@ -25,7 +25,8 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "prepare": "husky",
     "commit": "git-cz",
-    "analyze": "npx react-native-bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res"
+    "analyze": "npx react-native-bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res",
+    "e2e": "detox test --configuration android.debug"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

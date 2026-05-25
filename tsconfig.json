@@ -28,5 +28,5 @@
     "types": ["jest", "node"]
   },
   "include": ["**/*.ts", "**/*.tsx", "src/**/*"],
-  "exclude": ["**/node_modules", "**/Pods", "android", "ios", "babel.config.js", "metro.config.js"]
+  "exclude": ["**/node_modules", "**/Pods", "android", "ios", "babel.config.js", "metro.config.js", "e2e/"]
 }

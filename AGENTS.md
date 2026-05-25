@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 15 — Performance Hardening (complete ✅)
+**Current Phase**: 16 — Testing Infrastructure (complete ✅)
 **Next**: TBD
 
 **Pre-existing issues** (don't waste time investigating):
@@ -26,10 +26,13 @@ React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the v
 | Format | `npm run format` / `format:check` |
 | Commit | `npm run commit` (git-cz) |
 | Bundle analysis | `npm run analyze` |
+| E2E test | `npm run e2e` (requires `detox` globally installed) |
 
 **Lint+Format**: pre-commit hook via lint-staged runs `eslint --fix --max-warnings=0 && prettier --write` on staged files. `lint:ci` must pass.
 
 **Engine**: Node >= 22.11.0. JDK 17+ for Android builds.
+
+**Testing Infrastructure**: Phase 16 — `__tests__/infrastructure/` with centralized MockRegistry, 7 reusable mocks, 9 helper modules, 7 integration suites (35 tests), 3 performance benchmarks (gated behind `__PERF__`), Detox E2E config. All new tests are deterministic (no `setTimeout` in test logic). Performance benchmarks skip in CI. Detox requires `detox` globally installed.
 
 ---
 

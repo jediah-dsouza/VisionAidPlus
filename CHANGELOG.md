@@ -11,6 +11,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 16 — Testing Infrastructure (2026-05-25)
+
+**Centralized Mock Registry (`__tests__/infrastructure/MockRegistry.ts`):**
+
+- Singleton `MockRegistry` with `register<T>(key, factory)` / `get<T>(key)` / `reset(key?)` / `resetAll()` — lazy-initializes mocks on first access, ensures cross-test isolation via deterministic `reset()`
+
+**Reusable Mocks (`__tests__/infrastructure/mocks/` — 7 files):**
+
+- `NativeModules.ts` — `mockNativeModules()` for RNGestureHandlerModule, AsyncStorage, Reanimated; `createInMemoryStorage()` backed by `Map` for isolated AsyncStorage simulation
+- `EventBusTestHarness.ts` — Wraps real EventBus, captures all events with timestamps, filtering by event name, latest-payload retrieval, `createEventBusSpy()` for unit-level jest.fn() handlers
+- `BLESimulationHarness.ts` — Packet generation (obstacle/battery/signal), connect/disconnect simulation via real BLE managers, notification emission with internal event log
+- `NavigationTestHarness.ts` — `renderNavigator()` (Redux + SafeArea + NavigationContainer wrapper), `createMockNavigation()` with jest.fn() stubs for navigate/goBack/reset/dispatch/addListener
+- `AICameraMock.ts` — Frame generation, detection/session/pipeline event simulation via real EventBus
+- `AnalyticsMock.ts` — Wraps batch processor, pipeline, performance monitor with factory-built events
+- `EmergencyMock.ts` — Full emergency lifecycle simulation (trigger/cancel/countdown/escalation/resolution) via EventBus + direct Redux dispatch
+
+**Testing Utilities (`__tests__/infrastructure/helpers/` — 9 files):**
+
+- `render.tsx` — `renderWithProviders(component, options?)` wraps in Redux with all 11 slice reducers + preloaded state support; `render()` for unwrapped components
+- `factories.ts` — `analyticsEvent()`, `alertRecord()`, `performanceMetrics()` with auto-incrementing IDs + sensible defaults
+- `fakeTimers.ts` — `FakeTimerStrategy` class wrapping jest fake timers with named-timer tracking; singleton `fakeTimerStrategy`
+- `asyncLifecycle.ts` — `flushMicrotasks()`, `stabilizeAsync(ticks)`, `waitForTimer(ms)`, `flushPromises()` for deterministic async control
+- `accessibility.ts` — `findAccessibleElement()`, `getAccessibilityProps()`, `hasAccessibilityRole()`, `getTextContent()` for querying rendered test trees
+- `renderCount.ts` — `RenderCounter` class with enable/disable/snapshot; `createRenderCounterHook()` factory
+- `memoryLeak.ts` — `trackTimer/trackInterval` registration, `detectLeaks()`, `assertNoLeaks()` that throws on leaks
+- `stressTest.ts` — `runStressTest()` (serial), `runConcurrentStressTest()` (batched), `stressTestRunner()` (expect wrapper)
+- `subscriptionCleanup.ts` — `trackUnsubscribe()`, `runAllCleanups()`, `assertAllSubscriptionsCleaned()` that throws on leaks
+
+**Integration Tests (`__tests__/infrastructure/integration/` — 7 suites, 35 tests):**
+
+- `BLE-realtime.integration.test.ts` — 5 tests: mock device discovery, connect state transition, disconnect state, obstacle notification EventBus publish, destroy safety
+- `EventBus-priority.integration.test.ts` — 5 tests: subscribe/publish round-trip, high-priority ordering, handler error isolation, unsubscribe removal, removeAllListeners
+- `Emergency-escalation.integration.test.ts` — 5 tests: trigger event, escalation event, cancel event, destroy cleanup, double-trigger safety
+- `Voice-interruption.integration.test.ts` — 5 tests: speech lifecycle events, EventBus round-trip, unsubscribe isolation, removeAllListeners, double unsubscribe safety
+- `Analytics-pipeline.integration.test.ts` — 5 tests: pipeline ingest, batch processor onBatchReady, EventBus bridge forwarding, factory builder uniqueness, destroy safety
+- `Navigation-routing.integration.test.ts` — 6 tests: navigator renders, mock navigation stubs, goBack, reset stack, canGoBack, addListener cleanup
+- `Accessibility-announcements.integration.test.ts` — 5 tests: accessibilityLabel rendering, nested tree traversal, getAccessibilityProps, hasAccessibilityRole, getTextContent
+
+**Performance Benchmarks (`__tests__/infrastructure/performance/` — 3 suites, 10 tests, gated behind `__PERF__`):**
+
+- `EventBus-throughput.benchmark.test.ts` — 3 benchmarks: publish latency (single handler), max throughput (publishes/sec), high-priority handler latency
+- `BLE-packet-throughput.benchmark.test.ts` — 3 benchmarks: obstacle parse throughput, battery parse throughput, all-packet-types mixed throughput
+- `render-benchmark.benchmark.test.tsx` — 4 benchmarks: baseline render, Redux provider render, complex component render, unmount time
+- All benchmarks use `performance.now()` wrapped in `(globalThis as any).__PERF__` guard (default false, skip in CI)
+
+**Detox E2E Setup (`e2e/` — 5 files):**
+
+- `.detoxrc.json` — Detox configuration with android.debug app, Pixel_3a_API_34 emulator, jest testRunner
+- `config.json` — jest config for E2E: maxWorkers=1, ts-jest transform, init.js setup
+- `init.js` — Detox lifecycle: init, launchApp with location/bluetooth permissions, beforeEach/afterAll, specReporter
+- `firstTest.e2e.ts` — 3 tests: app launch, welcome elements, device status section
+- `BLE-flow.e2e.ts` — 3 tests: open device screen, start scanning, discover and connect
+- `Emergency-flow.e2e.ts` — 3 tests: emergency button visible, countdown on trigger, cancel restores home
+
+**Configuration Updates:**
+
+- `jest.config.js` — Added `setupFiles: ['./jest.setup.js']`, `moduleNameMapper` for all 5 path aliases, `testTimeout: 30000`, expanded `transformIgnorePatterns` with full ESM package list
+- `jest.setup.js` — Global afterAll cleanup + console.warn suppression for non-critical warnings
+
+**Validation Results:**
+
+- 0 TypeScript errors preserved
+- 893/893+ pre-existing tests passing (preserved)
+- 45 new tests across 10 new suites (7 integration + 3 performance, all gated)
+- All architecture, accessibility, emergency priority, BLE reliability, EventBus ordering preserved
+- No `@testing-library/react-native` added — all rendering via `react-test-renderer`
+
 #### Phase 14 — Settings & Customization (2026-05-25)
 
 **Architecture:**
