@@ -23,7 +23,7 @@ const PRIORITY_ORDER: Record<EventPriority, number> = {
 
 let eventBusInstanceCounter = 0;
 
-class EventBus {
+export class EventBus {
   private instanceId: number;
   private subscriptions: Map<string, EventSubscription[]> = new Map();
   private eventQueue: Array<{ event: string; payload: unknown; priority: EventPriority }> = [];

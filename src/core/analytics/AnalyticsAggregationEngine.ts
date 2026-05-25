@@ -14,7 +14,7 @@ export abstract class AnalyticsAggregationEngine {
   }
 
   abstract processEvent(event: AnalyticsEvent): void;
-  abstract snapshot(): Record<string, unknown>;
+  abstract snapshot(): any;
   abstract reset(): void;
 
   getMetrics(): EngineMetrics {

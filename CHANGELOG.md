@@ -11,6 +11,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 13 — Analytics & Alert History (2026-05-25)
+
+**Core Analytics Modules (`src/core/analytics/`):**
+
+- Created `types.ts` — All analytics type definitions: `AnalyticsEvent`, `AnalyticsFilter`, `AnalyticsCategory`, `AnalyticsSeverity`, `AnalyticsSource`, `AlertRecord`, `SessionSegment`, `EngineMetrics`, `SafetyMetrics`, `ObstacleMetrics`, `UsageMetrics`, `SessionSummary`, `PerformanceSnapshot`, `AnalyticsState`, and supporting types
+- Created `AnalyticsEventPipeline.ts` — Pub-sub pipeline for event ingestion with subscriber management, destroy lifecycle, singleton `analyticsEventPipeline`
+- Created `AnalyticsBatchProcessor.ts` — Time/size-batched event processing with configurable `batchSize` and `batchIntervalMs`, `onBatchReady` callback, manual `flush()`, auto-flush on destroy
+- Created `AnalyticsAggregationEngine.ts` — Abstract base class for aggregation engines: `processEvent`, `snapshot`, `reset`, `getMetrics`, `destroy` with automatic `trackEvent` timing
+- Created `AlertHistoryManager.ts` — Alert lifecycle management: active/acknowledged/resolved/dismissed states, `getCriticalAlerts()`, `getAlertsByTimeRange()`, per-alert metrics tracking
+- Created `SafetyMetricsEngine.ts` — Safety metrics with hazard counting, response time tracking (p50/p90/p95), severity time-series windowing (configurable `HAZARD_WINDOW_MS`)
+- Created `ObstacleAnalyticsEngine.ts` — Obstacle detection analytics: type/distance/direction distributions, confidence tracking, density estimation, time-series history
+- Created `UsageInsightEngine.ts` — Usage pattern analysis: feature activation counts, session durations, hourly usage distribution `usageByHour`, average session length
+- Created `SessionSummaryGenerator.ts` — Per-session summary generation with start/end/bookend markers, segment tracking, route/confidence reporting
+- Created `HistoricalEventIndexer.ts` — Doubly-linked-list event storage with `append`, `removeOlderThan`, `query` (predicate filtering), `getCount`, `getOldestTimestamp`, `toArray`
+- Created `AnalyticsMemoryProtection.ts` — Adaptive memory budget enforcement with moving-average event rate, three-tier pressure (normal/warning/critical), automatic pruning trigger
+- Created `AnalyticsPerformanceMonitor.ts` — Real-time performance metrics: events per second, p50/p90/p95/p99 processing latency, peak tracking, moving-average windowing
+- Created `AnalyticsRetentionManager.ts` — TTL-based retention with configurable `alertTtlMs`/`aggregateTtlMs`/`sessionTtlMs`, per-category overrides via `setCustomTtl`, alert pinning/unpinning to prevent pruning
+- Created `AnalyticsPersistenceCoordinator.ts` — Async serialize/deserialize of indexer events and engine snapshots with optional encryption marker, import/export support
+- Created `AnalyticsSynchronizationLayer.ts` — Sync layer with retry queue (exponential backoff 1s→2s→4s→8s→16s), conflict detection via `lastSyncedAt`, flush-ordering fix for destroy race condition
+- Created `AnalyticsFilterEngine.ts` — Multi-dimensional event filtering with timeRange, categories, severities, priorities, sources, textSearch; capped at `MAX_RESULTS=500`
+- Created `AnalyticsExportPreparationLayer.ts` — Export with compression, checksum (SHA-256 via `CryptoJS`), format selection (JSON/CSV), optional encryption
+- Created `AlertDeduplicationLayer.ts` — Configurable dedup window (`DEFAULT_DEDUP_WINDOW_MS=5000`), `dedupGroup` matching, chain clearing on match
+- Created `AnalyticsAccessibilityChartCoordinator.ts` — Accessibility-optimized chart data: audio/tactile summaries, severity breakdowns, trend analysis with `isIncreasing`/`isDecreasing`
+- Created `AnalyticsRenderingOptimizer.ts` — Render budget enforcement with frame budget/event budget/throttle intervals, adaptive pressure adjustment
+- Created `AnalyticsEventBridge.ts` — EventBus↔Analytics bridge: bidirectional event relay with origin tagging and rate-limited callback protection
+- Created `SessionAnalyticsCoordinator.ts` — Session lifecycle (start/end/buildSummary/destroy) with engine registration, merged summary from all registered engines
+
+**Redux Integration:**
+
+- Created `src/app/store/slices/analyticsSlice.ts` — Analytics Redux slice with actions: `startSession`, `endSession`, `updateMetrics`, `addAlert`, `acknowledgeAlert`, `resolveAlert`, `dismissAlert`, `setActive`
+
+**Bug Fixes (source code):**
+
+- `AnalyticsSynchronizationLayer.destroy()` — Fixed flush ordering to call `flush()` before setting `destroyed = true` to prevent pending events from being dropped
+- `SessionAnalyticsCoordinator.buildSummary()` — Fixed field mapping to read `hazardCount`/`criticalAlerts` from SafetyMetricsEngine and `totalDetections` from ObstacleAnalyticsEngine instead of stale snapshot fields
+- `AnalyticsFilterEngine.match()` — Added guard for missing `priority` field on `AnalyticsEvent` type to prevent false negative filtering when priorities filter is non-empty
+- `AnalyticsRetentionManager.prune()` — Fixed to check `pinnedAlertIds` before removing events (pin system was disconnected from prune logic)
+- `AnalyticsAggregationEngine.ts` — Changed `snapshot()` abstract return type from `Record<string, unknown>` to `any` to support typed subclass return values
+- `EventBus.ts` — Added `EventBus` class export for testability (missing `export`)
+
+**Tests (24 test suites, 217 tests):**
+
+- `__tests__/analytics/AnalyticsEventPipeline.test.ts` — Pipeline lifecycle, subscribe/unsubscribe, destroy
+- `__tests__/analytics/AnalyticsBatchProcessor.test.ts` — Batch by size, batch by interval, flush, empty flush
+- `__tests__/analytics/AnalyticsAggregationEngine.test.ts` — Base class: metrics, process, timing, reset, destroy, error handling
+- `__tests__/analytics/AlertHistoryManager.test.ts` — CRUD alerts, critical alerts, time-range filtering, destroy
+- `__tests__/analytics/SafetyMetricsEngine.test.ts` — Hazard counting, response times (p50/p90/p95), severity window, alert count
+- `__tests__/analytics/ObstacleAnalyticsEngine.test.ts` — Type/distance/direction distributions, confidence, density estimation
+- `__tests__/analytics/UsageInsightEngine.test.ts` — Feature activation, session tracking, hourly peaks, reset
+- `__tests__/analytics/SessionSummaryGenerator.test.ts` — Session lifecycle, segments, confidence tracking, null summary
+- `__tests__/analytics/HistoricalEventIndexer.test.ts` — Append, removeOlderThan, query, count, oldest timestamp, toArray, destroy
+- `__tests__/analytics/AnalyticsMemoryProtection.test.ts` — Event rate, pressure levels, pruning trigger
+- `__tests__/analytics/AnalyticsPerformanceMonitor.test.ts` — Events/sec, peak latency, p50/p90/p99, moving average, snapshot
+- `__tests__/analytics/AnalyticsRetentionManager.test.ts` — TTL pruning, custom TTL, pin/unpin protection
+- `__tests__/analytics/AnalyticsPersistenceCoordinator.test.ts` — Serialize/deserialize, import validation, metadata tracking
+- `__tests__/analytics/AnalyticsSynchronizationLayer.test.ts` — Sync queue, backoff, conflict detection, flush ordering, destroy
+- `__tests__/analytics/AnalyticsFilterEngine.test.ts` — MatchAll, timeRange, categories, severities, sources, textSearch, result cap, destroy
+- `__tests__/analytics/AnalyticsExportPreparationLayer.test.ts` — JSON/CSV export, checksum, record count
+- `__tests__/analytics/AlertDeduplicationLayer.test.ts` — Dedup window, different categories, chain clearing, match counts
+- `__tests__/analytics/AnalyticsAccessibilityChartCoordinator.test.ts` — Audio summaries, severity breakdowns, trend detection, empty state
+- `__tests__/analytics/AnalyticsRenderingOptimizer.test.ts` — Frame budget, event budget, throttle interval, pressure adjustment, adaptive
+- `__tests__/analytics/AnalyticsEventBridge.test.ts` — Forward analytics to EventBus, forward EventBus to analytics, origin tag, destroy
+- `__tests__/analytics/SessionAnalyticsCoordinator.test.ts` — Session lifecycle, engine registration, merged summary, no-engines edge case
+- `__tests__/analytics/analyticsSlice.test.ts` — Redux slice: initial state, session actions, metrics updates, alert CRUD
+- `__tests__/analytics/runtime/AnalyticsRuntimeValidation.test.ts` — 10 integration scenarios: pipeline+batch, alert+safety, end-to-end+export, bridge, coordinator lifecycle, memory protection, retention+pruning, sync, filter query, dedup
+- `__tests__/analytics/runtime/AnalyticsStressValidation.test.ts` — 10 throughput/stress scenarios: burst ingestion, batch pressure, multi-engine load, filter stress, memory protection under load, retention under load, sync queue stress, export scale, pipeline thundering herd, coordinator lifecycle stress
+
 #### Phase 7 — BLE Realtime Communication Backbone (2026-05-24)
 
 **Core BLE Modules (`src/core/ble/`):**

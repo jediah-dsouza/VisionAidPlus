@@ -38,19 +38,23 @@ export class AnalyticsRetentionManager {
     const now = Date.now();
     let totalPruned = 0;
 
-    for (const [category, ttlMs] of this.customTtls) {
+    const cutoffByTtl = (ttlMs: number): number => {
       const cutoff = now - ttlMs;
-      totalPruned += this.indexer.removeOlderThan(cutoff);
+      const allOld = this.indexer.query(e => e.timestamp < cutoff);
+      const prunable = allOld.filter(e => !this.pinnedAlertIds.has(e.id));
+      for (const event of prunable) {
+        this.indexer.removeOlderThan(event.timestamp + 1);
+      }
+      return prunable.length;
+    };
+
+    for (const [, ttlMs] of this.customTtls) {
+      totalPruned += cutoffByTtl(ttlMs);
     }
 
-    const alertCutoff = now - this.config.alertTtlMs;
-    totalPruned += this.indexer.removeOlderThan(alertCutoff);
-
-    const aggregateCutoff = now - this.config.aggregateTtlMs;
-    totalPruned += this.indexer.removeOlderThan(aggregateCutoff);
-
-    const sessionCutoff = now - this.config.sessionTtlMs;
-    totalPruned += this.indexer.removeOlderThan(sessionCutoff);
+    totalPruned += cutoffByTtl(this.config.alertTtlMs);
+    totalPruned += cutoffByTtl(this.config.aggregateTtlMs);
+    totalPruned += cutoffByTtl(this.config.sessionTtlMs);
 
     if (this.pinnedAlertIds.size > MAX_PINNED_ALERTS) {
       const excess = this.pinnedAlertIds.size - MAX_PINNED_ALERTS;

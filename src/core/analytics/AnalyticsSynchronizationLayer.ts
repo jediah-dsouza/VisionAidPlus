@@ -64,8 +64,8 @@ export class AnalyticsSynchronizationLayer {
   }
 
   destroy(): void {
-    this.destroyed = true;
     this.flush();
+    this.destroyed = true;
     if (this.flushTimer !== null) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;

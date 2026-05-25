@@ -88,10 +88,13 @@ export class SessionAnalyticsCoordinator {
     }
 
     for (const engine of this.engines) {
-      const snap = engine.snapshot();
+      const snap = engine.snapshot() as Record<string, unknown>;
       if (typeof snap.totalAlerts === 'number') totalAlerts += snap.totalAlerts;
+      if (typeof snap.hazardCount === 'number') totalAlerts += snap.hazardCount;
       if (typeof snap.totalObstacles === 'number') totalObstacles += snap.totalObstacles;
+      if (typeof snap.totalDetections === 'number') totalObstacles += snap.totalDetections;
       if (typeof snap.criticalEvents === 'number') criticalEvents += snap.criticalEvents;
+      if (typeof snap.criticalAlerts === 'number') criticalEvents += snap.criticalAlerts;
       if (typeof snap.averageConfidence === 'number') averageConfidence = snap.averageConfidence;
     }
 
@@ -103,8 +106,8 @@ export class SessionAnalyticsCoordinator {
       endTime,
       duration,
       totalDetections,
-      totalAlerts,
-      totalObstacles,
+      totalAlerts: totalAlerts,
+      totalObstacles: totalObstacles,
       criticalEvents,
       averageConfidence,
       activeDuration: duration,

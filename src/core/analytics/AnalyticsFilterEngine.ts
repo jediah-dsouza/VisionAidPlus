@@ -33,8 +33,12 @@ export class AnalyticsFilterEngine {
 
     if (!filter.categories.includes(event.category)) return false;
     if (!filter.severities.includes(event.severity)) return false;
-    if (!filter.priorities.includes(event.priority as any)) return false;
     if (!filter.sources.includes(event.source)) return false;
+
+    const eventPriority = (event as unknown as Record<string, unknown>).priority;
+    if (filter.priorities.length > 0 && !filter.priorities.includes(eventPriority as never)) {
+      if (eventPriority !== undefined) return false;
+    }
 
     if (filter.textSearch) {
       const searchLower = filter.textSearch.toLowerCase();
