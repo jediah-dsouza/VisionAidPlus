@@ -11,8 +11,9 @@ import { ThemeProvider, useTheme } from './providers/ThemeProvider';
 import { navigationGuard } from './navigation/utils/navigationGuards';
 import env from '../env';
 import { logger } from '@core/debug';
+import { ErrorBoundary } from '../shared/components/ErrorBoundary';
 
-// Initialize dashboard event middleware and emergency systems
+// Initialize core systems — imports guarantee bundling of critical modules
 import { dashboardEventMiddleware } from '@features/home/dashboard/middleware';
 import { accessibilityEngine } from '@core/accessibility';
 import { bleManager } from '@core/ble';
@@ -20,12 +21,16 @@ import { emergencyManager } from '@core/emergency';
 import { navigationManager } from '@core/live-navigation';
 import { analyticsEventBridge, analyticsBatchProcessor, analyticsEventPipeline } from '@core/analytics';
 import { eventBus } from '@core/events/EventBus';
+import { errorHandler } from '@core/error/ErrorHandler';
+import { networkMonitor } from '@core/network/NetworkMonitor';
+
+// Initialize AccessibilityEngine in ALL builds (critical for visually impaired users)
+accessibilityEngine.initialize();
+logger.debug('[App] AccessibilityEngine initialized');
 
 if (__DEV__) {
-  accessibilityEngine.initialize();
-  logger.debug('AccessibilityEngine initialized');
   dashboardEventMiddleware.initialize();
-  logger.debug('Dashboard event middleware initialized');
+  logger.debug('[App] Dashboard event middleware initialized');
 }
 
 // Initialize Emergency Manager (always - critical safety subsystem)
@@ -49,6 +54,10 @@ logger.debug('[App] BLEManager initialized');
 navigationManager.initialize();
 logger.debug('[App] NavigationManager initialized');
 
+// Initialize NetworkMonitor for offline awareness
+networkMonitor.initialize();
+logger.debug('[App] NetworkMonitor initialized');
+
 // Initialize Analytics pipeline
 analyticsEventBridge.onAnalyticsEvent = event => {
   analyticsBatchProcessor.enqueue(event);
@@ -59,14 +68,11 @@ analyticsBatchProcessor.onBatchReady = batch => {
 analyticsEventBridge.connect(eventBus);
 logger.debug('[App] Analytics pipeline initialized');
 
-// [DIAGNOSTIC] Store identity at Provider site
-const providerStoreId = (store as any).__REDUX_STORE_ID__;
-const globalStore = (globalThis as any).__VISIONAID_STORE__;
-console.log(`[StoreDebug] 📦 Provider module — store ID: ${providerStoreId}`);
-console.log(`[StoreDebug]   store === globalThis.__VISIONAID_STORE__: ${store === globalStore}`);
-console.log(`[StoreDebug]   store.dispatch type: ${typeof store.dispatch}`);
-console.log(`[StoreDebug]   store.getState type: ${typeof store.getState}`);
-console.log(`[StoreDebug]   store.subscribe type: ${typeof store.subscribe}`);
+if (__DEV__) {
+  const providerStoreId = (store as any).__REDUX_STORE_ID__;
+  const globalStore = (globalThis as any).__VISIONAID_STORE__;
+  console.log(`[StoreDebug] Store identity — ID: ${providerStoreId}, matches global: ${store === globalStore}`);
+}
 
 LogBox.ignoreLogs(['Non-serializable values were found in the navigation state']);
 
@@ -137,31 +143,40 @@ const App: React.FC = () => {
   useEffect(() => {
     return () => {
       dashboardEventMiddleware.destroy();
+      emergencyManager.destroy();
+      bleManager.destroy();
+      navigationManager.destroy();
+      networkMonitor.destroy();
+      logger.debug('[App] Core systems destroyed on unmount');
     };
   }, []);
 
-  const appStoreId = (store as any).__REDUX_STORE_ID__;
-  const appGlobalStore = (globalThis as any).__VISIONAID_STORE__;
-  console.log(`[StoreDebug] 🏁 App render — store ID: ${appStoreId}`);
-  console.log(`[StoreDebug]   store === globalThis.__VISIONAID_STORE__: ${store === appGlobalStore}`);
-  console.log(`[StoreDebug]   Provider receives store ID: ${appStoreId}`);
+  if (__DEV__) {
+    const appStoreId = (store as any).__REDUX_STORE_ID__;
+    const appGlobalStore = (globalThis as any).__VISIONAID_STORE__;
+    console.log(`[StoreDebug] App render — ID: ${appStoreId}, matches global: ${store === appGlobalStore}`);
+  }
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <ReduxProvider store={store}>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <SafeAreaProvider>
-              <StatusBar
-                barStyle="light-content"
-                backgroundColor={env.ENVIRONMENT === 'production' ? '#0F172A' : '#1E293B'}
-              />
-              <NavigationWrapper />
-            </SafeAreaProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-      </ReduxProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary name="AppRoot">
+      <GestureHandlerRootView style={styles.root}>
+        <ReduxProvider store={store}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <SafeAreaProvider>
+                <StatusBar
+                  barStyle="light-content"
+                  backgroundColor={env.ENVIRONMENT === 'production' ? '#0F172A' : '#1E293B'}
+                />
+                <ErrorBoundary name="Navigation">
+                  <NavigationWrapper />
+                </ErrorBoundary>
+              </SafeAreaProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </ReduxProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 };
 

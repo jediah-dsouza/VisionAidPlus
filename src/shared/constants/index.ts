@@ -44,15 +44,6 @@ export const EVENT_PRIORITIES = {
   LOW: ['ANALYTICS_SYNC', 'BACKGROUND_REFRESH'],
 } as const;
 
-export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'auth_token',
-  USER_DATA: 'user_data',
-  SETTINGS: 'app_settings',
-  DEVICE_PAIRED: 'device_paired',
-  LAST_SYNC: 'last_sync',
-  CACHE: 'cache',
-} as const;
-
 export const API_ENDPOINTS = {
   AUTH_LOGIN: '/auth/login',
   AUTH_REGISTER: '/auth/register',

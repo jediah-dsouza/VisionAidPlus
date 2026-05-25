@@ -1,3 +1,4 @@
+import { logger } from '../debug';
 import type { AnalyticsEvent } from './types';
 
 type PipelineHandler = (event: AnalyticsEvent) => void;
@@ -38,8 +39,8 @@ export class AnalyticsEventPipeline {
     this.handlers.forEach(handler => {
       try {
         handler(enriched);
-      } catch (error) {
-        console.error('[AnalyticsPipeline] Handler error:', error);
+        } catch (error) {
+          logger.error('[AnalyticsPipeline] Handler error:', error);
       }
     });
   }

@@ -1,3 +1,5 @@
+import { logger } from '../debug';
+
 type EventPriority = 'critical' | 'high' | 'normal' | 'low';
 
 type EventHandler<T = unknown> = (payload: T) => void;
@@ -11,6 +13,7 @@ interface EventSubscription {
 
 interface EventBusConfig {
   defaultPriority: EventPriority;
+  maxSubscriptionsPerEvent: number;
 }
 
 const PRIORITY_ORDER: Record<EventPriority, number> = {
@@ -20,6 +23,9 @@ const PRIORITY_ORDER: Record<EventPriority, number> = {
   low: 3,
 };
 
+const DEFAULT_MAX_SUBSCRIPTIONS_PER_EVENT = 50;
+const PUBLISH_THROTTLE_MS = 50;
+
 let eventBusInstanceCounter = 0;
 
 export class EventBus {
@@ -28,7 +34,8 @@ export class EventBus {
   private config: EventBusConfig;
   private subscriptionId = 0;
   private lastPublishTime: Map<string, number> = new Map();
-  private readonly PUBLISH_THROTTLE_MS = 50;
+  private throttledEventCount: Map<string, number> = new Map();
+  private droppedEventWarningsShown: Set<string> = new Set();
 
   constructor(config: Partial<EventBusConfig> = {}) {
     eventBusInstanceCounter++;
@@ -38,6 +45,7 @@ export class EventBus {
     }
     this.config = {
       defaultPriority: config.defaultPriority ?? 'normal',
+      maxSubscriptionsPerEvent: config.maxSubscriptionsPerEvent ?? DEFAULT_MAX_SUBSCRIPTIONS_PER_EVENT,
     };
   }
 
@@ -59,6 +67,13 @@ export class EventBus {
     };
 
     const existing = this.subscriptions.get(event) ?? [];
+
+    if (existing.length >= this.config.maxSubscriptionsPerEvent) {
+      logger.warn(
+        `[EventBus#${this.instanceId}] Subscription cap reached for ${event}: ${existing.length} handlers`,
+      );
+    }
+
     const withPriority = [...existing, subscription].sort(
       (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
     );
@@ -89,10 +104,20 @@ export class EventBus {
     const now = Date.now();
     const lastTime = this.lastPublishTime.get(event);
 
-    if (lastTime !== undefined && now - lastTime < this.PUBLISH_THROTTLE_MS) {
+    if (lastTime !== undefined && now - lastTime < PUBLISH_THROTTLE_MS) {
+      const count = (this.throttledEventCount.get(event) ?? 0) + 1;
+      this.throttledEventCount.set(event, count);
+      if (count >= 10 && !this.droppedEventWarningsShown.has(event)) {
+        this.droppedEventWarningsShown.add(event);
+        logger.warn(
+          `[EventBus#${this.instanceId}] Throttled ${count}+ publishes for ${event} ` +
+          `(${PUBLISH_THROTTLE_MS}ms throttle) — possible event storm`,
+        );
+      }
       return;
     }
 
+    this.throttledEventCount.set(event, 0);
     this.lastPublishTime.set(event, now);
 
     if (__DEV__) {
@@ -108,7 +133,7 @@ export class EventBus {
         try {
           sub.handler(payload);
         } catch (error) {
-          console.error(`[EventBus#${this.instanceId}] Handler error for ${event}:`, error);
+          logger.error(`[EventBus#${this.instanceId}] Handler error for ${event}:`, error);
         }
       });
     } else if (__DEV__) {
@@ -146,6 +171,15 @@ export class EventBus {
 
   clearThrottleCache(): void {
     this.lastPublishTime.clear();
+    this.throttledEventCount.clear();
+    this.droppedEventWarningsShown.clear();
+  }
+
+  destroy(): void {
+    this.subscriptions.clear();
+    this.lastPublishTime.clear();
+    this.throttledEventCount.clear();
+    this.droppedEventWarningsShown.clear();
   }
 }
 

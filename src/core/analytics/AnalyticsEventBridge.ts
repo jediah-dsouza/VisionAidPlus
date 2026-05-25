@@ -1,3 +1,4 @@
+import { logger } from '../debug';
 import type { AnalyticsEvent, AnalyticsCategory, AnalyticsSeverity, AnalyticsSource } from './types';
 import { EVENTS } from '@core/events/EventBus';
 
@@ -82,7 +83,7 @@ export class AnalyticsEventBridge {
       try {
         unsubscribe();
       } catch (error) {
-        console.error('[AnalyticsEventBridge] Unsubscribe error:', error);
+        logger.error('[AnalyticsEventBridge] Unsubscribe error:', error);
       }
     }
 
@@ -114,7 +115,7 @@ export class AnalyticsEventBridge {
       try {
         this.onAnalyticsEvent(analyticsEvent);
       } catch (error) {
-        console.error('[AnalyticsEventBridge] onAnalyticsEvent callback error:', error);
+        logger.error('[AnalyticsEventBridge] onAnalyticsEvent callback error:', error);
       }
     }
   }

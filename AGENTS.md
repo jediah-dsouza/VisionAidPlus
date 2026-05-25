@@ -2,7 +2,7 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 16 — Testing Infrastructure (complete ✅)
+**Current Phase**: 17 — Production Hardening (complete ✅)
 **Next**: TBD
 
 **Pre-existing issues** (don't waste time investigating):
@@ -33,6 +33,8 @@ React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the v
 **Engine**: Node >= 22.11.0. JDK 17+ for Android builds.
 
 **Testing Infrastructure**: Phase 16 — `__tests__/infrastructure/` with centralized MockRegistry, 7 reusable mocks, 9 helper modules, 7 integration suites (35 tests), 3 performance benchmarks (gated behind `__PERF__`), Detox E2E config. All new tests are deterministic (no `setTimeout` in test logic). Performance benchmarks skip in CI. Detox requires `detox` globally installed.
+
+**Production Hardening**: Phase 17 — React ErrorBoundary wrapping app tree, AccessibilityEngine initialized in all builds, EventBus health monitoring (subscription cap, throttle warnings, destroy lifecycle), EmergencyManager timer leak fixed, AsyncStorage stale keys removed, Redux debug logging gated behind `__DEV__`, all core managers destroyed on unmount, `console.error` → `logger.error` in EventBus and analytics pipelines, NetworkMonitor utility for offline awareness, ProductionErrorReporter for remote error transport integration.
 
 ---
 

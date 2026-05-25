@@ -47,6 +47,7 @@ export class EmergencyManager {
   private initialized = false;
   private destroyed = false;
   private recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  private escalationTimer: ReturnType<typeof setTimeout> | null = null;
   private stateMachineCleanup: (() => void) | null = null;
   private countdownCleanup: (() => void) | null = null;
   private eventPriorityCleanup: (() => void) | null = null;
@@ -267,7 +268,8 @@ export class EmergencyManager {
     );
 
     const backoff = this.config.escalatedBackoffMs * Math.pow(2, this.currentSession.escalationAttempts - 1);
-    setTimeout(() => {
+    this.escalationTimer = setTimeout(() => {
+      this.escalationTimer = null;
       if (!this.destroyed && this.currentSession?.status === 'escalating') {
         this.executeEmergencyProtocol();
       }
@@ -340,7 +342,8 @@ export class EmergencyManager {
     if (this.destroyed) return;
 
     this.destroyed = true;
-    if (this.recoveryTimer) clearTimeout(this.recoveryTimer);
+    if (this.recoveryTimer) { clearTimeout(this.recoveryTimer); this.recoveryTimer = null; }
+    if (this.escalationTimer) { clearTimeout(this.escalationTimer); this.escalationTimer = null; }
 
     if (this.stateMachineCleanup) {
       this.stateMachineCleanup();
