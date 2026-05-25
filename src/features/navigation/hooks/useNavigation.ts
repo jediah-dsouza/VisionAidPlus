@@ -6,27 +6,27 @@ import { useCallback } from 'react';
 export const useNavigation = () => {
   const dispatch = useAppDispatch();
   const navigation = useAppSelector(state => state.navigation);
-  const settings = useAppSelector(state => state.settings);
+  const ttsEnabled = useAppSelector(state => state.settings.preferences.audio.ttsEnabled);
 
   const startNavigation = useCallback(
     async (destination: string) => {
       dispatch(navigationActions.startNavigation(destination));
       eventBus.publish(EVENTS.NAVIGATION_STARTED, { destination }, 'normal');
       accessibilityEngine.announceNavigationChange('Navigation');
-      if (settings.ttsEnabled) {
+      if (ttsEnabled) {
         await ttsService.speak(`Navigation started to ${destination}`, 'normal');
       }
     },
-    [dispatch, settings.ttsEnabled],
+    [dispatch, ttsEnabled],
   );
 
   const stopNavigation = useCallback(async () => {
     dispatch(navigationActions.stopNavigation());
     eventBus.publish(EVENTS.NAVIGATION_STOPPED, {}, 'normal');
-    if (settings.ttsEnabled) {
+    if (ttsEnabled) {
       await ttsService.speak('Navigation stopped', 'normal');
     }
-  }, [dispatch, settings.ttsEnabled]);
+  }, [dispatch, ttsEnabled]);
 
   const pauseNavigation = useCallback(() => {
     dispatch(navigationActions.pauseNavigation());

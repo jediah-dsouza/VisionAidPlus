@@ -12,6 +12,7 @@ describe('EmergencyContactManager', () => {
   });
 
   const validContact = {
+    id: 'contact-1',
     name: 'Jane Doe',
     phone: '+1-555-0100',
     relationship: 'Spouse',
@@ -20,6 +21,7 @@ describe('EmergencyContactManager', () => {
   };
 
   const secondaryContact = {
+    id: 'contact-2',
     name: 'John Smith',
     phone: '+1-555-0200',
     relationship: 'Friend',

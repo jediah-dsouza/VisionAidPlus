@@ -34,7 +34,7 @@ describe('emergencySlice', () => {
   });
 
   it('setSending transitions to sending state', () => {
-    const s1 = reducer(undefined, emergencyActions.triggerEmergency());
+    const s1 = reducer(undefined, emergencyActions.triggerEmergency({}));
     const s2 = reducer(s1, emergencyActions.setSending());
     expect(s2.status).toBe('sending');
   });
@@ -48,14 +48,14 @@ describe('emergencySlice', () => {
   });
 
   it('resolveEmergency transitions to resolved', () => {
-    const s1 = reducer(undefined, emergencyActions.triggerEmergency());
+    const s1 = reducer(undefined, emergencyActions.triggerEmergency({}));
     const s2 = reducer(s1, emergencyActions.resolveEmergency());
     expect(s2.status).toBe('resolved');
     expect(s2.resolvedAt).toBeDefined();
   });
 
   it('resetEmergency returns to idle', () => {
-    const s1 = reducer(undefined, emergencyActions.triggerEmergency());
+    const s1 = reducer(undefined, emergencyActions.triggerEmergency({}));
     const s2 = reducer(s1, emergencyActions.resetEmergency());
     expect(s2.status).toBe('idle');
     expect(s2.triggeredAt).toBeNull();

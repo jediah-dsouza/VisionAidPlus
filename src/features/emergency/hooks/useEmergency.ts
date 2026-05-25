@@ -12,11 +12,11 @@ import {
 } from '@core/emergency';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { EmergencyContact } from '../types';
+import env from '../../../env';
 
 export const useEmergency = () => {
   const dispatch = useAppDispatch();
   const emergency = useAppSelector(state => state.emergency);
-  const settings = useAppSelector(state => state.settings);
   const mountedRef = useRef(true);
   const countdownListenerCleanup = useRef<(() => void) | null>(null);
 
@@ -54,7 +54,7 @@ export const useEmergency = () => {
   }, [dispatch]);
 
   const startCountdown = useCallback((durationOverride?: number) => {
-    const duration = durationOverride ?? settings.emergencyCountdown;
+    const duration = durationOverride ?? env.EMERGENCY_COUNTDOWN_SECONDS;
     dispatch(emergencyActions.startCountdown(duration));
     emergencyManager.startCountdown(duration);
 
@@ -64,7 +64,7 @@ export const useEmergency = () => {
       true,
     );
     accessibilityEngine.triggerHaptic('emergency');
-  }, [dispatch, settings.emergencyCountdown]);
+  }, [dispatch]);
 
   const triggerEmergency = useCallback(async () => {
     emergencyCountdownManager.confirm();

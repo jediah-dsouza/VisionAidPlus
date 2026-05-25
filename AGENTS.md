@@ -2,13 +2,12 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 13 — Analytics & Alert History (complete ✅)
+**Current Phase**: 14 — Settings & Customization (complete ✅)
 **Next**: TBD
 
 **Pre-existing issues** (don't waste time investigating):
-- `App.test.tsx` fails due to RNGH native module in Jest
-- Remaining emergency TypeScript errors are pre-existing
 - Redux→React rendering gap: `store.getState()` changes but widgets don't re-render (blame Redux→React layer, not middleware/EventBus)
+- `SessionSummaryGenerator.test.ts` flaky timing — `endTime` may equal `startTime` by 1ms on fast runs
 
 ---
 

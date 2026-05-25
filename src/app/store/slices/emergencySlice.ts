@@ -77,10 +77,10 @@ export const emergencySlice = createSlice({
       state.countdownRemaining = action.payload;
       state.lastUpdatedAt = new Date().toISOString();
     },
-    triggerEmergency: (state, action: PayloadAction<{ sessionId?: string } | undefined>) => {
+    triggerEmergency: (state, action: PayloadAction<{ sessionId?: string }>) => {
       state.status = EMERGENCY_STATES.TRIGGERED;
       state.triggeredAt = new Date().toISOString();
-      if (action.payload?.sessionId) {
+      if (action.payload.sessionId) {
         state.sessionId = action.payload.sessionId;
       }
       state.lastUpdatedAt = new Date().toISOString();

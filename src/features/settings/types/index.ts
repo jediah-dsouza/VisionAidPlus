@@ -1,23 +1,33 @@
-import type { Settings } from '@shared/types';
+export type {
+  AccessibilityPreferences,
+  AudioPreferences,
+  HapticPreferences,
+  NavigationPreferences,
+  ThemePreferences,
+  LanguagePreferences,
+  BiometricPreferences,
+  PrivacyPreferences,
+  UserPreferences,
+} from './preferences';
 
-export interface SettingsState extends Settings {}
+export type {
+  PreferenceCategory,
+  PreferenceValue,
+  SettingFieldDefinition,
+  SettingCategoryDefinition,
+} from './categories';
 
-export interface SettingsCategory {
-  id: string;
-  title: string;
-  description: string;
-  fields: Array<{
-    key: keyof Settings;
-    label: string;
-    type: 'toggle' | 'select' | 'slider' | 'input';
-    options?: string[];
-    min?: number;
-    max?: number;
-  }>;
-}
-
-export interface AppInfo {
-  version: string;
-  buildNumber: string;
-  environment: 'development' | 'staging' | 'production';
-}
+export {
+  DEFAULT_PREFERENCES,
+  DEFAULT_ACCESSIBILITY,
+  DEFAULT_AUDIO,
+  DEFAULT_HAPTIC,
+  DEFAULT_NAVIGATION,
+  DEFAULT_THEME,
+  DEFAULT_LANGUAGE,
+  DEFAULT_BIOMETRIC,
+  DEFAULT_PRIVACY,
+  SETTINGS_CATEGORIES,
+  getCategoryPreference,
+  setCategoryPreference,
+} from './categories';

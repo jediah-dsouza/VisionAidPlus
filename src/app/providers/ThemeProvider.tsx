@@ -26,10 +26,10 @@ const ThemeContext = createContext<Theme | null>(null);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const settings = useAppSelector(state => state.settings);
+  const prefs = useAppSelector(state => state.settings.preferences);
 
   const theme = useMemo<Theme>(() => {
-    const isDark = settings.highContrastMode || systemColorScheme === 'dark';
+    const isDark = prefs.theme.highContrastMode || prefs.theme.themeMode === 'dark' || (prefs.theme.themeMode === 'system' && systemColorScheme === 'dark');
 
     return {
       colors: isDark ? baseColors : baseColors,
@@ -40,7 +40,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       touchTarget,
       isDark,
     };
-  }, [systemColorScheme, settings.highContrastMode]);
+  }, [systemColorScheme, prefs.theme.highContrastMode, prefs.theme.themeMode]);
 
   return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
 };

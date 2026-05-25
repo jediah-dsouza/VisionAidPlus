@@ -11,6 +11,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 14 — Settings & Customization (2026-05-25)
+
+**Architecture:**
+
+- Designed 8-category preference system replacing flat 11-field settings: accessibility (9 fields), audio (1), haptic (2), navigation (1), theme (2), language (5), biometric (1), privacy (4)
+- All UI state flows through Redux selectors; no direct native calls in UI layer
+- EventBus `SETTINGS_CHANGED` event for real-time sync with AccessibilityEngine, HapticCoordinator
+
+**Preference Types & Schema (`src/features/settings/types/`):**
+
+- Created `preferences.ts` — 8 typed category interfaces (`AccessibilityPreferences`, `AudioPreferences`, `HapticPreferences`, `NavigationPreferences`, `ThemePreferences`, `LanguagePreferences`, `BiometricPreferences`, `PrivacyPreferences`) + `UserPreferences` composite type
+- Created `categories.ts` — `DEFAULT_PREFERENCES` with full 50+ field defaults, `SETTINGS_CATEGORIES` array with field definitions (type, default, min/max, options, dependency fields), `PreferenceCategory` union type, `getPreference`/`setPreference` helpers
+
+**Persistence (`src/features/settings/services/SettingsPersistenceService.ts`):**
+
+- AsyncStorage CRUD with per-category keys (`@pref_accessibility`, `@pref_audio`, etc.) + snapshot key + version key for granular reads/writes
+- Debounced (300ms trailing) snapshot writes for atomic full-state reads
+- Versioned migration (`legacyToPreferences()`) from old flat `STORAGE_KEYS.SETTINGS` to new category structure
+- Destroy/resetState lifecycle for singleton test isolation
+
+**Redux Integration (`src/app/store/slices/settingsSlice.ts`):**
+
+- Replaced flat 11-field state with `{ preferences: UserPreferences, hasCompletedOnboarding, _loaded }`
+- `setCategoryPreference` action for individual pref key updates
+- `setPreferences`, `resetPreferences`, `setHasCompletedOnboarding`, `setLoaded` actions
+
+**Sync Middleware (`src/features/settings/services/SettingsSyncMiddleware.ts`):**
+
+- EventBus publish on preference change
+- Registered handlers update AccessibilityEngine (8 fields: highContrastMode, largeText, reducedMotion, voiceAnnouncements, screenReaderEnabled, quietHoursEnabled/Start/End)
+- Registered handlers update HapticCoordinator (`hapticEnabled`)
+- Registration-based handler system with destroy lifecycle, category+key filtering
+
+**Hook (`src/features/settings/hooks/useSettings.ts`):**
+
+- Loads from persistence on mount (dispatches `setPreferences`)
+- `setPreference(category, key, value)` — dispatches Redux, triggers sync middleware, persists via `saveCategory`
+- `resetToDefaults()` — resets all categories to defaults, syncs, persists
+
+**Accessible Components (`src/features/settings/components/`):**
+
+- `SettingToggle` — switch with 48px minimum touch target, `accessibilityLabel`, `accessibilityRole="switch"`, `accessibilityState.checked`, announces changes via `accessibilityEngine`
+- `SettingSlider` — custom +/- step buttons (no external slider dependency), increments/decrements with boundary clamping, accessibility actions for screen reader adjust gesture
+- `SettingSelect` — modal picker with accessibility announcement on selection change
+- `SettingCategory` — collapsible section with expand/collapse toggle, animated chevron, announces state changes
+
+**Screen (`src/features/settings/screens/SettingsScreen.tsx`):**
+
+- Category-based rendering from `SETTINGS_CATEGORIES` definition array
+- Dependency-based field visibility (e.g. quiet hours time fields only visible when quietHoursEnabled is true)
+- Reset-to-defaults with confirmation Alert modal
+- Full accessibility labels and roles on all interactive elements
+
+**ThemeProvider Update (`src/app/providers/ThemeProvider.tsx`):**
+
+- Reads `preferences.theme.highContrastMode` and `preferences.theme.themeMode` (supports light/dark/system)
+- Proper dependency array for useMemo
+
+**TypeScript Fixes:**
+
+- Fixed `SettingFieldDefinition` key typing (string instead of union-derived never)
+- Fixed `SettingsSyncMiddleware` payload types (removed over-constrained generics)
+- Fixed `settingsSlice` reducer (typed as unknown cast for dynamic key access)
+- Fixed `SettingCategory` surface.subtle → surface.elevated (matching semantic tokens)
+- Fixed `ThemeProvider` stale `settings.highContrastMode` reference → `prefs.theme.highContrastMode`
+- Fixed `SettingsScreen`, `useSettings` call signatures for non-generic types
+
+**Tests (20 tests across 5 suites):**
+
+- `__tests__/settings/settingsSlice.test.ts` — 7 tests: initial state, setPreferences, setCategoryPreference, setHasCompletedOnboarding, resetPreferences, setLoaded, category isolation
+- `__tests__/settings/SettingsPersistenceService.test.ts` — 6 tests: first-run defaults, category save/load, merged load after save, resetAll, destroy safety, loadCategory defaults
+- `__tests__/settings/SettingsSyncMiddleware.test.ts` — 5 tests: init, idempotent init, dispatchChange publishes event, reset calls dispatch, destroy prevents operations
+- `__tests__/settings/SettingsRuntimeValidation.test.ts` — 10 integration scenarios: persistence round-trip, sync dispatch, a11y engine update, haptic update, category isolation, resetAll, idempotent init, destroy safety, double destroy, default independence
+- `__tests__/settings/SettingsStressValidation.test.ts` — 8 stress scenarios: rapid saves, large values, repeated reset cycles, concurrent load/save, field mapping completeness, null-read fallback, post-destroy safety, key uniqueness
+
+**Key Design Decisions:**
+
+- **Flat state with nested slice**: `state.settings.preferences` stores 8-category object; ThemeProvider reads `preferences.theme.*`
+- **Per-category persistence keys**: 8 independent AsyncStorage keys — granular reads/writes, no catastrophic data loss on corruption
+- **Immediate category writes**: `saveCategory` writes directly to its key (not debounced); only snapshot consolidation is debounced (300ms)
+- **Custom slider**: no external `@react-native-community/slider` dependency; built accessible slider with increment/decrement buttons
+- **Backward compatible migration**: `legacyToPreferences()` reads old flat key, maps to new category structure, deletes legacy key
+
 #### Phase 13 — Analytics & Alert History (2026-05-25)
 
 **Core Analytics Modules (`src/core/analytics/`):**

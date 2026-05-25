@@ -1,55 +1,83 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@app/store';
 import { settingsActions } from '@app/store/slices/settingsSlice';
-import { accessibilityEngine, ttsService, storage, STORAGE_KEYS } from '../../../core';
-import type { Settings } from '@shared/types';
-import { useCallback, useEffect } from 'react';
+import { accessibilityEngine } from '@core/accessibility/AccessibilityEngine';
+import { logger } from '@core/debug';
+import { settingsPersistence } from '../services/SettingsPersistenceService';
+import { settingsSync } from '../services/SettingsSyncMiddleware';
+import type { UserPreferences } from '../types/preferences';
+import type { PreferenceCategory } from '../types/categories';
 
 export const useSettings = () => {
   const dispatch = useAppDispatch();
-  const settings = useAppSelector(state => state.settings);
+  const preferences = useAppSelector(state => state.settings.preferences);
+  const loaded = useAppSelector(state => state.settings._loaded);
+  const initialized = useRef(false);
 
-  const updateSetting = useCallback(
-    async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-      dispatch(settingsActions.setSettings({ [key]: value }));
+  const setPreference = useCallback(
+    async (category: PreferenceCategory, key: string, value: unknown) => {
+      dispatch(settingsActions.setCategoryPreference({ category, key, value }));
 
-      if (key === 'ttsEnabled') {
-        await ttsService.setLanguage(settings.ttsLanguage);
-      }
+      const updated = {
+        ...preferences,
+        [category]: {
+          ...preferences[category],
+          [key]: value,
+        },
+      };
 
-      if (key === 'ttsLanguage' || key === 'ttsSpeechRate') {
-        await ttsService.setSpeechRate(settings.ttsSpeechRate);
-      }
+      settingsSync.dispatchChange(category, key, value, updated);
 
-      await storage.set(STORAGE_KEYS.SETTINGS, { ...settings, [key]: value });
+      await settingsPersistence.saveCategory(
+        category,
+        updated[category] as UserPreferences[typeof category],
+      );
     },
-    [dispatch, settings],
+    [dispatch, preferences],
   );
 
   const resetToDefaults = useCallback(async () => {
-    dispatch(settingsActions.resetSettings());
-    await storage.remove(STORAGE_KEYS.SETTINGS);
+    dispatch(settingsActions.resetPreferences());
+    await settingsPersistence.resetAll();
+    settingsSync.reset();
   }, [dispatch]);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      const stored = await storage.get<Settings>(STORAGE_KEYS.SETTINGS);
-      if (stored) {
-        dispatch(settingsActions.setSettings(stored));
+    if (initialized.current || loaded) return;
+    initialized.current = true;
+
+    const load = async () => {
+      try {
+        const stored = await settingsPersistence.loadPreferences();
+        dispatch(settingsActions.setPreferences(stored));
+        settingsSync.initialize();
+
+        accessibilityEngine.updateConfig({
+          highContrastMode: stored.accessibility.highContrastMode,
+          largeText: stored.accessibility.largeText,
+          reducedMotion: stored.accessibility.reducedMotion,
+          hapticFeedback: stored.haptic.hapticEnabled,
+          voiceAnnouncements: stored.accessibility.voiceAnnouncements,
+          screenReaderEnabled: stored.accessibility.screenReaderEnabled,
+          quietHoursEnabled: stored.accessibility.quietHoursEnabled,
+          quietHoursStart: stored.accessibility.quietHoursStart,
+          quietHoursEnd: stored.accessibility.quietHoursEnd,
+        });
+
+        logger.info('[Settings] Preferences loaded from persistence');
+      } catch (error) {
+        logger.error('[Settings] Failed to load preferences:', error);
+        dispatch(settingsActions.setLoaded(true));
       }
     };
-    loadSettings();
 
-    accessibilityEngine.updateConfig({
-      highContrastMode: settings.highContrastMode,
-      largeText: settings.largeText,
-      reducedMotion: settings.reducedMotion,
-      hapticFeedback: settings.hapticFeedback,
-    });
-  }, []);
+    load();
+  }, [dispatch, loaded]);
 
   return {
-    settings,
-    updateSetting,
+    preferences,
+    loaded,
+    setPreference,
     resetToDefaults,
   };
 };

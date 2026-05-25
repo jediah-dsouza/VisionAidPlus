@@ -1,31 +1,44 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { Settings } from '@shared/types';
+import type { UserPreferences } from '@features/settings/types/preferences';
+import type { PreferenceCategory } from '@features/settings/types/categories';
+import { DEFAULT_PREFERENCES } from '@features/settings/types/categories';
 
-const initialState: Settings = {
-  ttsEnabled: true,
-  ttsLanguage: 'en-US',
-  ttsSpeechRate: 0.5,
-  highContrastMode: true,
-  largeText: true,
-  reducedMotion: false,
-  hapticFeedback: true,
-  emergencyCountdown: 5,
-  autoReconnect: true,
-  analyticsEnabled: false,
+export interface SettingsState {
+  preferences: UserPreferences;
+  hasCompletedOnboarding: boolean;
+  _loaded: boolean;
+}
+
+const initialState: SettingsState = {
+  preferences: { ...DEFAULT_PREFERENCES },
   hasCompletedOnboarding: false,
+  _loaded: false,
 };
 
 export const settingsSlice = createSlice({
   name: 'settings',
   initialState,
   reducers: {
-    setSettings: (state, action: PayloadAction<Partial<Settings>>) => {
-      return { ...state, ...action.payload };
+    setPreferences: (state, action: PayloadAction<UserPreferences>) => {
+      state.preferences = action.payload;
+      state._loaded = true;
+    },
+    setCategoryPreference: (
+      state: SettingsState,
+      action: PayloadAction<{ category: PreferenceCategory; key: string; value: unknown }>,
+    ) => {
+      const { category, key, value } = action.payload;
+      (state.preferences[category] as unknown as Record<string, unknown>)[key] = value;
     },
     setHasCompletedOnboarding: (state, action: PayloadAction<boolean>) => {
       state.hasCompletedOnboarding = action.payload;
     },
-    resetSettings: () => initialState,
+    resetPreferences: (state) => {
+      state.preferences = { ...DEFAULT_PREFERENCES };
+    },
+    setLoaded: (state, action: PayloadAction<boolean>) => {
+      state._loaded = action.payload;
+    },
   },
 });
 
