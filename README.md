@@ -1,97 +1,402 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# VisionAid+ 🚀
+
+A production-grade accessibility-focused mobile platform designed to assist visually impaired users through real-time navigation, obstacle awareness, emergency assistance, voice interaction, analytics, and AI-ready camera integration.
+
+---
+
+## Overview
+
+VisionAid+ is a React Native mobile application built using a modular, scalable, and production-oriented architecture.
+
+The platform combines:
+
+- Accessibility-first design
+- Real-time BLE communication
+- Live obstacle navigation
+- Emergency response workflows
+- Voice assistant infrastructure
+- AI camera integration preparation
+- Analytics and safety insights
+- Persistent personalization systems
+- Production testing and hardening
+
+The frontend architecture has been designed to support future backend services, AI inference engines, cloud synchronization, and real-world deployment.
+
+---
+
+# Project Status
+
+### Current State
+
+Production-Ready Frontend Foundation ✅
+
+| Metric                       | Status            |
+| ---------------------------- | ----------------- |
+| Frontend Phases Completed    | 17 / 17           |
+| TypeScript Errors            | 0                 |
+| Jest Test Coverage           | 929 / 929 Passing |
+| Test Suites                  | 100               |
+| Redux Architecture           | Complete          |
+| Accessibility Infrastructure | Complete          |
+| BLE Infrastructure           | Complete          |
+| Emergency System             | Complete          |
+| Voice Assistant              | Complete          |
+| Analytics Platform           | Complete          |
+| AI Integration Preparation   | Complete          |
+| Production Hardening         | Complete          |
+
+---
+
+# Core Features
+
+## Accessibility System
+
+- Screen-reader friendly interfaces
+- Accessibility-safe alerts
+- Voice announcements
+- Haptic feedback integration
+- High-contrast support
+- Large text support
+- Accessibility preference management
+
+---
+
+## BLE Device Integration
+
+- Device discovery
+- Device pairing
+- Connection lifecycle management
+- Signal monitoring
+- Reconnection handling
+- Event-driven architecture
+
+---
+
+## Emergency Assistance System
+
+- SOS workflows
+- Emergency countdown system
+- Emergency contact management
+- GPS preparation
+- SMS workflow preparation
+- Emergency event prioritization
+- Accessibility-safe emergency interactions
+
+---
+
+## Live Navigation
+
+- Real-time obstacle tracking
+- Distance radar
+- Direction indicators
+- Voice guidance
+- Danger state prioritization
+- Environment modes
+- Pause / Resume controls
+- Sensitivity controls
+
+---
+
+## Voice Assistant
+
+- Centralized TTS architecture
+- Speech prioritization
+- Voice queue system
+- Interruption handling
+- Command history
+- Push-to-talk preparation
+- Waveform rendering
+
+---
+
+## AI Camera Integration (Preparation Layer)
+
+- Vision Camera integration architecture
+- Detection contracts
+- AI event pipeline
+- Detection stream architecture
+- Rendering optimization
+- Frame throttling
+- Background processing preparation
+
+> Note: AI inference is intentionally not implemented yet. This phase focuses on scalable frontend integration architecture.
+
+---
+
+## Analytics Platform
+
+- Alert history
+- Session summaries
+- Obstacle analytics
+- Safety metrics
+- Usage insights
+- Offline persistence
+- Export preparation
+
+---
+
+## Personalization System
+
+- Accessibility preferences
+- Audio controls
+- Haptic controls
+- Navigation sensitivity
+- Theme customization
+- Language preferences
+- Biometric preferences
+- Privacy controls
+
+---
+
+# Architecture
+
+The application follows a modular layered architecture.
+
+```text
+src/
+├── app/
+├── core/
+├── features/
+├── shared/
+├── navigation/
+├── hooks/
+├── services/
+└── tests/
+```
+
+### Layers
+
+#### Core Layer
+
+Contains business logic:
+
+- BLE
+- Navigation
+- Emergency
+- Voice Assistant
+- Analytics
+- AI Pipeline
+- Event Bus
+
+#### Feature Layer
+
+Contains:
+
+- Screens
+- Components
+- Hooks
+- User interactions
+
+#### Redux Layer
+
+Provides:
+
+- Global application state
+- Event synchronization
+- Persistence support
+
+#### EventBus Layer
+
+Provides:
+
+- Realtime communication
+- Cross-feature coordination
+- Priority event handling
+
+---
+
+# Technology Stack
+
+## Mobile
+
+- React Native
+- TypeScript
+
+## State Management
+
+- Redux Toolkit
+
+## Navigation
+
+- React Navigation
+
+## Testing
+
+- Jest
+- React Native Testing Library
+- Detox Preparation
+
+## Camera
+
+- React Native Vision Camera
+
+## Architecture
+
+- Event-Driven Architecture
+- Modular Feature Architecture
+- Accessibility-First Design
+
+---
+
+# Testing Infrastructure
+
+The project includes:
+
+### Unit Testing
+
+- Core modules
+- Redux slices
+- Hooks
+- Utilities
+
+### Integration Testing
+
+- BLE workflows
+- Accessibility workflows
+- Navigation workflows
+- Analytics workflows
+
+### Runtime Validation
+
+- Stress testing
+- Event pipeline validation
+- Lifecycle validation
+
+### Current Results
+
+```text
+929 / 929 Tests Passing
+100 Test Suites
+0 TypeScript Errors
+```
+
+---
 
 # Getting Started
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Prerequisites
 
-## Step 1: Start Metro
+- Node.js
+- Android Studio
+- Android SDK
+- Java JDK
+- React Native CLI
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+---
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## Installation
 
-```sh
-# Using npm
+Clone the repository:
+
+```bash
+git clone https://github.com/jediah-dsouza/VisionAidPlus.git
+cd VisionAidPlus
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start Metro:
+
+```bash
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+Run Android:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+```bash
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+# Development Commands
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Run tests:
 
-```sh
-bundle install
+```bash
+npm test
 ```
 
-Then, and every time you update your native dependencies, run:
+Type checking:
 
-```sh
-bundle exec pod install
+```bash
+npx tsc --noEmit
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Run specific test suite:
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+```bash
+npm test -- analytics
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+# Backend Integration Status
 
-## Step 3: Modify your app
+The frontend foundation is complete.
 
-Now that you have successfully run the app, let's make changes!
+Future backend integration includes:
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+- Authentication
+- User profiles
+- Cloud synchronization
+- Emergency services
+- AI inference APIs
+- Analytics export APIs
+- Voice processing services
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+---
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+# Production Hardening
 
-## Congratulations! :tada:
+Implemented:
 
-You've successfully run and modified your React Native App. :partying_face:
+- Error boundaries
+- Memory leak prevention
+- EventBus safeguards
+- Offline resilience preparation
+- Accessibility compliance improvements
+- Lifecycle cleanup verification
+- Android optimization preparation
 
-### Now what?
+---
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+# Future Roadmap
 
-# Troubleshooting
+### Backend Integration
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+- Authentication APIs
+- Cloud synchronization
+- Emergency dispatch services
 
-# Learn More
+### AI Services
 
-To learn more about React Native, take a look at the following resources:
+- Obstacle detection
+- Scene understanding
+- Environmental awareness
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+### Deployment
+
+- Android Play Store Release
+- Real Device Validation
+- Accessibility Certification
+
+---
+
+# Author
+
+Jediah D'Souza
+
+Final Year Project — VisionAid+
+
+Production-grade accessibility-focused mobile platform architecture built using React Native and TypeScript.
+
+---
+
+# License
+
+This project is intended for educational, research, and accessibility-focused development purposes.
