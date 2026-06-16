@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Button, Modal } from '@shared/design-system';
 import { semanticTokens } from '@shared/design-system/theme/semantic';
@@ -9,9 +9,13 @@ import { SettingToggle, SettingSlider, SettingSelect, SettingCategory } from '..
 import { SETTINGS_CATEGORIES } from '../types/categories';
 import type { UserPreferences, PreferenceCategory } from '../types';
 import type { SettingFieldDefinition } from '../types/categories';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@app/navigation/types/navigation';
 
 export const SettingsScreen: React.FC = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { preferences, loaded, setPreference, resetToDefaults } = useSettings();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -109,12 +113,19 @@ export const SettingsScreen: React.FC = () => {
         </SettingCategory>
       ))}
 
-      <View style={styles.safetyInfo}>
-        <Text style={styles.safetyTitle}>Emergency & Safety</Text>
-        <Text style={styles.safetyDescription}>
-          Emergency contacts and safety preferences are managed in the Emergency screen.
-        </Text>
-      </View>
+      <Pressable
+        onPress={() => navigation.navigate('Emergency', { screen: 'EmergencyHome' })}
+        accessibilityRole="button"
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+        <View
+          style={styles.safetyInfo}
+          accessibilityLabel="Emergency and Safety. Emergency contacts and safety preferences are managed in the Emergency screen.">
+          <Text style={styles.safetyTitle}>Emergency & Safety</Text>
+          <Text style={styles.safetyDescription}>
+            Emergency contacts and safety preferences are managed in the Emergency screen.
+          </Text>
+        </View>
+      </Pressable>
 
       <View style={styles.resetContainer}>
         <Button variant="danger" size="md" onPress={() => setShowResetConfirm(true)}>
@@ -174,17 +185,17 @@ const styles = StyleSheet.create({
     padding: tokens.spacing[4],
     backgroundColor: semanticTokens.colors.surface.default,
     borderRadius: semanticTokens.radius.md,
+    minHeight: semanticTokens.touchTarget.comfortable,
   },
   safetyTitle: {
-    fontSize: semanticTokens.fontSize.base,
+    fontSize: semanticTokens.fontSize.lg,
     fontWeight: tokens.fontWeight.semibold,
     color: semanticTokens.colors.foreground.default,
-    marginBottom: tokens.spacing[1],
   },
   safetyDescription: {
     fontSize: semanticTokens.fontSize.sm,
     color: semanticTokens.colors.foreground.muted,
-    lineHeight: 20,
+    marginTop: 1,
   },
   resetContainer: {
     marginTop: tokens.spacing[4],
