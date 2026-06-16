@@ -27,13 +27,13 @@ const PermissionItem: React.FC<PermissionItemProps> = ({
   const getStatusColor = () => {
     switch (status) {
       case 'granted':
-        return semanticTokens.colors.success.default;
+        return '#22C55E';
       case 'denied':
-        return semanticTokens.colors.danger.default;
+        return '#EF4444';
       case 'blocked':
-        return semanticTokens.colors.warning.default;
+        return '#F59E0B';
       default:
-        return semanticTokens.colors.foreground.muted;
+        return '#64748B';
     }
   };
 
@@ -50,9 +50,18 @@ const PermissionItem: React.FC<PermissionItemProps> = ({
     }
   };
 
+  const isGranted = status === 'granted';
+
   return (
-    <View style={styles.permissionItem}>
-      <View style={styles.permissionIcon}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.permissionItem,
+        pressed && !isGranted && { transform: [{ scale: 0.98 }] },
+      ]}
+      onPress={isGranted ? undefined : onRequest}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${getStatusText()}. Tap to request`}>
+      <View style={[styles.permissionIcon, isGranted && styles.permissionIconGranted]}>
         <Text style={styles.iconText}>{icon}</Text>
       </View>
       <View style={styles.permissionContent}>
@@ -68,7 +77,12 @@ const PermissionItem: React.FC<PermissionItemProps> = ({
           </Pressable>
         )}
       </View>
-    </View>
+      {!isGranted && (
+        <View style={styles.chevron}>
+          <Text style={styles.chevronText}>›</Text>
+        </View>
+      )}
+    </Pressable>
   );
 };
 
@@ -126,60 +140,98 @@ export const PermissionsScreen: React.FC = () => {
   ];
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Permissions</Text>
-          <Text style={styles.subtitle}>
-            VisionAid+ needs certain permissions to provide the best experience
-          </Text>
-        </View>
-
-        <View style={styles.permissionsList}>
-          {permissionItems.map(item => (
-            <PermissionItem
-              key={item.key}
-              icon={item.icon}
-              title={item.title}
-              description={item.description}
-              status={permissions[item.key]}
-              onRequest={() => handleRequestPermission(item.key)}
-              onOpenSettings={openSettings}
-            />
-          ))}
-        </View>
-
-        {hasDeniedPermissions && (
-          <View style={styles.warningContainer}>
-            <Text style={styles.warningText}>
-              Some permissions were denied. You can grant them in Settings for full functionality.
+    <View style={styles.root}>
+      <View style={styles.gradientOverlay}>
+        <View style={styles.gradientTop} />
+        <View style={styles.gradientBottom} />
+      </View>
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Permissions</Text>
+            <Text style={styles.subtitle}>
+              VisionAid+ needs certain permissions to provide the best experience
             </Text>
           </View>
-        )}
-      </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          variant="outline"
-          size="lg"
-          fullWidth
-          onPress={handleRequestAll}
-          isLoading={isLoading}
-          disabled={isLoading}>
-          Grant All Permissions
-        </Button>
-        <Button variant="primary" size="lg" fullWidth onPress={handleContinue} disabled={isLoading}>
-          Continue
-        </Button>
+          <View style={styles.permissionsList}>
+            {permissionItems.map(item => (
+              <PermissionItem
+                key={item.key}
+                icon={item.icon}
+                title={item.title}
+                description={item.description}
+                status={permissions[item.key]}
+                onRequest={() => handleRequestPermission(item.key)}
+                onOpenSettings={openSettings}
+              />
+            ))}
+          </View>
+
+          {hasDeniedPermissions && (
+            <View style={styles.warningContainer}>
+              <Text style={styles.warningIcon}>⚠</Text>
+              <Text style={styles.warningText}>
+                Some permissions were denied. You can grant them in Settings for full functionality.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Button
+            variant="outline"
+            size="lg"
+            fullWidth
+            onPress={handleRequestAll}
+            isLoading={isLoading}
+            disabled={isLoading}>
+            Grant All Permissions
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onPress={handleContinue}
+            disabled={isLoading}>
+            Continue
+          </Button>
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#0B1121',
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFill,
+  },
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: '#0F172A',
+    opacity: 0.6,
+  },
+  gradientBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    backgroundColor: '#1E293B',
+    opacity: 0.15,
+  },
   container: {
     flex: 1,
-    backgroundColor: semanticTokens.colors.background.default,
   },
   scrollContent: {
     flexGrow: 1,
@@ -190,38 +242,49 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing[6],
   },
   title: {
-    fontSize: semanticTokens.fontSize['3xl'],
+    fontSize: 30,
     fontWeight: tokens.fontWeight.bold,
-    color: semanticTokens.colors.foreground.default,
+    color: '#FFFFFF',
     marginBottom: tokens.spacing[2],
+    letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: semanticTokens.fontSize.lg,
     color: semanticTokens.colors.foreground.muted,
     lineHeight: 26,
+    letterSpacing: 0.2,
   },
   permissionsList: {
     gap: tokens.spacing[4],
   },
   permissionItem: {
     flexDirection: 'row',
-    backgroundColor: semanticTokens.colors.surface.default,
-    borderRadius: semanticTokens.radius.lg,
+    backgroundColor: '#1A2332',
+    borderRadius: 16,
     padding: tokens.spacing[4],
     borderWidth: 1,
-    borderColor: semanticTokens.colors.border.default,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    alignItems: 'center',
   },
   permissionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: semanticTokens.colors.primary.subtle,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: tokens.spacing[4],
   },
+  permissionIconGranted: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+  },
   iconText: {
-    fontSize: 24,
+    fontSize: 22,
   },
   permissionContent: {
     flex: 1,
@@ -229,7 +292,7 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: semanticTokens.fontSize.lg,
     fontWeight: tokens.fontWeight.semibold,
-    color: semanticTokens.colors.foreground.default,
+    color: '#FFFFFF',
     marginBottom: tokens.spacing[1],
   },
   permissionDescription: {
@@ -248,7 +311,7 @@ const styles = StyleSheet.create({
     marginRight: tokens.spacing[2],
   },
   statusText: {
-    fontSize: semanticTokens.fontSize.xs,
+    fontSize: semanticTokens.fontSize.sm,
     fontWeight: tokens.fontWeight.medium,
   },
   settingsButton: {
@@ -258,26 +321,43 @@ const styles = StyleSheet.create({
   settingsButtonText: {
     fontSize: semanticTokens.fontSize.sm,
     color: semanticTokens.colors.primary.default,
-    fontWeight: tokens.fontWeight.medium,
+    fontWeight: tokens.fontWeight.semibold,
+  },
+  chevron: {
+    marginLeft: tokens.spacing[2],
+    justifyContent: 'center',
+  },
+  chevronText: {
+    fontSize: 22,
+    color: '#64748B',
+    fontWeight: tokens.fontWeight.light,
   },
   warningContainer: {
-    marginTop: tokens.spacing[4],
+    marginTop: tokens.spacing[5],
     padding: tokens.spacing[4],
-    backgroundColor: semanticTokens.colors.warning.subtle,
-    borderRadius: semanticTokens.radius.md,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: semanticTokens.colors.warning.default,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing[3],
+  },
+  warningIcon: {
+    fontSize: 18,
   },
   warningText: {
     fontSize: semanticTokens.fontSize.sm,
-    color: semanticTokens.colors.warning.default,
-    textAlign: 'center',
+    color: '#F59E0B',
+    textAlign: 'left',
+    flex: 1,
+    lineHeight: 20,
   },
   footer: {
     padding: tokens.spacing[6],
     gap: tokens.spacing[3],
     borderTopWidth: 1,
-    borderTopColor: semanticTokens.colors.border.default,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
 });
 

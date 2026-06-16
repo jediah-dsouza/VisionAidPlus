@@ -27,6 +27,13 @@ import type { ObstacleDetection } from '@shared/types';
 // DEV ONLY: Import Dashboard Dev Panel
 import { DashboardDevPanel } from '../dev/DashboardDevPanel';
 
+const SectionHeader: React.FC<{ title: string; icon?: string }> = ({ title, icon }) => (
+  <View style={styles.sectionHeader}>
+    {icon && <Text style={styles.sectionIcon}>{icon}</Text>}
+    <Text style={styles.sectionTitle}>{title}</Text>
+  </View>
+);
+
 export const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
@@ -41,17 +48,8 @@ export const HomeScreen: React.FC = () => {
     handleStopDetection,
   } = useHomeDashboard();
 
-  // [DIAGNOSTIC] Render tracking
-  console.log('[HomeScreen] 🔄 RENDER');
-  console.log('[HomeScreen]   summary.deviceConnected:', summary.deviceConnected);
-  console.log('[HomeScreen]   summary.detectionCount:', summary.detectionCount);
-  console.log('[HomeScreen]   isLoading:', isLoading);
-  console.log('[HomeScreen]   error:', error);
-  console.log('[HomeScreen]   visibleObstacles.length:', obstacles.length);
-
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedObstacles, setDismissedObstacles] = useState<Set<string>>(new Set());
-  // [DIAGNOSTIC] Test button hit counter (DEV only, but hook must be unconditional)
   const [testButtonClicks, setTestButtonClicks] = useState(0);
 
   const currentObstacle = summary.lastObstacle;
@@ -97,39 +95,42 @@ export const HomeScreen: React.FC = () => {
   if (error) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Alert
-          title="Connection Error"
-          message={error}
-          variant="error"
-          action={{
-            label: 'Retry',
-            onPress: handleRefresh,
-          }}
-        />
+        <View style={styles.gradientOverlay}>
+          <View style={styles.gradientTop} />
+          <View style={styles.gradientBottom} />
+        </View>
+        <View style={styles.errorContent}>
+          <View style={styles.errorIconContainer}>
+            <Text style={styles.errorIcon}>⚠</Text>
+          </View>
+          <Alert
+            title="Connection Error"
+            message={error}
+            variant="error"
+            action={{
+              label: 'Retry',
+              onPress: handleRefresh,
+            }}
+          />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.gradientOverlay}>
+        <View style={styles.gradientTop} />
+        <View style={styles.gradientBottom} />
+      </View>
       {__DEV__ && (
-        <View
-          style={{
-            backgroundColor: '#FF6600',
-            padding: 10,
-            margin: 4,
-            borderRadius: 8,
-            zIndex: 9999,
-            elevation: 9999,
-          }}>
+        <View style={styles.devTestButton}>
           <RNButton
-            title={`🧪 TEST BUTTON (${testButtonClicks})`}
+            title={`🧪 TEST (${testButtonClicks})`}
             color="#FFFFFF"
             onPress={() => {
               const newCount = testButtonClicks + 1;
               setTestButtonClicks(newCount);
-              console.log(`[TouchTest] 🧪 TEST BUTTON PRESSED! count=${newCount}`);
-              console.log(`[TouchTest]   This confirms touch events work in HomeScreen`);
             }}
           />
         </View>
@@ -141,23 +142,35 @@ export const HomeScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.textPrimary}
+            tintColor={colors.textPrimary || '#FFFFFF'}
           />
         }
         accessibilityLabel="Home dashboard">
         <View style={styles.header}>
-          <Text
-            style={[styles.greeting, { color: colors.textSecondary }]}
-            accessibilityRole="header">
-            {greeting}
-          </Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            {summary.userName ? `Welcome, ${summary.userName.split(' ')[0]}` : 'VisionAid+'}
-          </Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerTextBlock}>
+              <Text
+                style={[styles.greeting, { color: colors.textSecondary || '#CBD5E1' }]}
+                accessibilityRole="header">
+                {greeting}
+              </Text>
+              <Text style={[styles.title, { color: colors.textPrimary || '#FFFFFF' }]}>
+                {summary.userName ? `Welcome, ${summary.userName.split(' ')[0]}` : 'VisionAid+'}
+              </Text>
+            </View>
+            {summary.deviceConnected && (
+              <View style={styles.deviceBadge}>
+                <View style={styles.deviceBadgeDot} />
+                <Text style={styles.deviceBadgeText}>Connected</Text>
+              </View>
+            )}
+          </View>
           {summary.detectionCount > 0 && (
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {summary.detectionCount} detections today
-            </Text>
+            <View style={styles.detectionPill}>
+              <Text style={styles.detectionPillText}>
+                {summary.detectionCount} detection{summary.detectionCount !== 1 ? 's' : ''} today
+              </Text>
+            </View>
           )}
         </View>
 
@@ -172,21 +185,23 @@ export const HomeScreen: React.FC = () => {
           <AIInstructionBanner obstacle={currentObstacle} autoDismissDelay={8000} />
         )}
 
-        <View style={styles.statusSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>System Status</Text>
-
-          <BLEStatusWidget onConnect={handleConnectDevice} onDisconnect={handleDisconnectDevice} />
-          <AIStatusWidget
-            onStartDetection={handleStartDetection}
-            onStopDetection={handleStopDetection}
-          />
+        <View style={styles.sectionCard}>
+          <SectionHeader title="System Status" icon="⚡" />
+          <View style={styles.statusWidgets}>
+            <BLEStatusWidget
+              onConnect={handleConnectDevice}
+              onDisconnect={handleDisconnectDevice}
+            />
+            <AIStatusWidget
+              onStartDetection={handleStartDetection}
+              onStopDetection={handleStopDetection}
+            />
+          </View>
         </View>
 
         {visibleObstacles.length > 0 && (
-          <View style={styles.obstacleSection}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Recent Obstacles
-            </Text>
+          <View style={styles.sectionCard}>
+            <SectionHeader title="Recent Obstacles" icon="⚠" />
             <View style={styles.obstacleList}>
               {visibleObstacles.slice(0, 3).map((obstacle, index) => (
                 <ObstacleDetectionCard
@@ -201,8 +216,8 @@ export const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        <View style={styles.quickActionsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Quick Actions</Text>
+        <View style={styles.sectionCard}>
+          <SectionHeader title="Quick Actions" icon="🚀" />
           <QuickActionsPreset
             onStartNavigation={handleStartNavigation}
             onConnectDevice={handleConnectDevice}
@@ -212,54 +227,45 @@ export const HomeScreen: React.FC = () => {
           />
         </View>
 
-        <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Today's Summary</Text>
-          <Card variant="elevated" padding="md">
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: semanticTokens.colors.primary.default }]}>
-                  {summary.detectionCount}
-                </Text>
-                <Text style={styles.statLabel}>Obstacles</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statValue,
-                    {
-                      color: summary.deviceConnected
-                        ? semanticTokens.colors.success.default
-                        : semanticTokens.colors.neutral[500],
-                    },
-                  ]}>
-                  {summary.deviceConnected ? '✓' : '✕'}
-                </Text>
-                <Text style={styles.statLabel}>Device</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text
-                  style={[
-                    styles.statValue,
-                    {
-                      color: summary.aiActive
-                        ? semanticTokens.colors.success.default
-                        : semanticTokens.colors.neutral[500],
-                    },
-                  ]}>
-                  {summary.aiActive ? 'On' : 'Off'}
-                </Text>
-                <Text style={styles.statLabel}>AI Active</Text>
-              </View>
+        <View style={styles.sectionCard}>
+          <SectionHeader title="Today's Summary" icon="📊" />
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: '#60A5FA' }]}>{summary.detectionCount}</Text>
+              <Text style={styles.statLabel}>Obstacles</Text>
             </View>
-          </Card>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text
+                style={[
+                  styles.statValue,
+                  {
+                    color: summary.deviceConnected ? '#22C55E' : '#64748B',
+                  },
+                ]}>
+                {summary.deviceConnected ? '✓' : '✕'}
+              </Text>
+              <Text style={styles.statLabel}>Device</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text
+                style={[
+                  styles.statValue,
+                  {
+                    color: summary.aiActive ? '#22C55E' : '#64748B',
+                  },
+                ]}>
+                {summary.aiActive ? 'On' : 'Off'}
+              </Text>
+              <Text style={styles.statLabel}>AI Active</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* DEV ONLY: Dashboard Dev Panel for testing */}
       {__DEV__ && <DashboardDevPanel />}
 
       <EmergencyFAB position="bottomRight" />
@@ -271,46 +277,161 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFill,
+  },
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: '#0F172A',
+    opacity: 0.5,
+  },
+  gradientBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    backgroundColor: '#1E293B',
+    opacity: 0.12,
+  },
   scrollView: {
     flex: 1,
   },
   content: {
     padding: tokens.spacing[4],
-    gap: tokens.spacing[6],
+    gap: tokens.spacing[5],
+    paddingTop: tokens.spacing[2],
+  },
+  devTestButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 9999,
+    elevation: 9999,
+    backgroundColor: '#FF6600',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   header: {
+    paddingTop: tokens.spacing[4],
+    gap: tokens.spacing[3],
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextBlock: {
+    flex: 1,
     gap: tokens.spacing[1],
   },
   greeting: {
     fontSize: semanticTokens.fontSize.base,
+    letterSpacing: 0.3,
+    opacity: 0.8,
   },
   title: {
-    fontSize: semanticTokens.fontSize['3xl'],
+    fontSize: 28,
     fontWeight: tokens.fontWeight.bold,
+    letterSpacing: 0.3,
   },
-  subtitle: {
+  deviceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    paddingHorizontal: tokens.spacing[3],
+    paddingVertical: tokens.spacing[1.5],
+    borderRadius: 20,
+    gap: tokens.spacing[1.5],
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.2)',
+  },
+  deviceBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#22C55E',
+  },
+  deviceBadgeText: {
+    fontSize: semanticTokens.fontSize.xs,
+    color: '#22C55E',
+    fontWeight: tokens.fontWeight.semibold,
+  },
+  detectionPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    paddingHorizontal: tokens.spacing[3],
+    paddingVertical: tokens.spacing[1.5],
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.15)',
+  },
+  detectionPillText: {
     fontSize: semanticTokens.fontSize.sm,
-    marginTop: tokens.spacing[1],
+    color: '#60A5FA',
+    fontWeight: tokens.fontWeight.medium,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: tokens.spacing[3],
-    padding: tokens.spacing[4],
-    backgroundColor: semanticTokens.colors.surface.default,
-    borderRadius: semanticTokens.radius.md,
+    padding: tokens.spacing[6],
+    backgroundColor: '#1A2332',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   loadingText: {
     fontSize: semanticTokens.fontSize.base,
-    color: semanticTokens.colors.foreground.muted,
+    color: '#CBD5E1',
   },
-  statusSection: {
-    gap: tokens.spacing[3],
+  errorContent: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: tokens.spacing[6],
+  },
+  errorIconContainer: {
+    alignItems: 'center',
+    marginBottom: tokens.spacing[6],
+  },
+  errorIcon: {
+    fontSize: 48,
+  },
+  sectionCard: {
+    backgroundColor: '#1A2332',
+    borderRadius: 16,
+    padding: tokens.spacing[5],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing[2],
+    marginBottom: tokens.spacing[4],
+  },
+  sectionIcon: {
+    fontSize: 16,
   },
   sectionTitle: {
     fontSize: semanticTokens.fontSize.lg,
     fontWeight: tokens.fontWeight.semibold,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  statusWidgets: {
+    gap: tokens.spacing[3],
   },
   obstacleSection: {
     gap: tokens.spacing[3],
@@ -334,20 +455,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statValue: {
-    fontSize: semanticTokens.fontSize['2xl'],
+    fontSize: 26,
     fontWeight: tokens.fontWeight.bold,
+    letterSpacing: 0.5,
   },
   statLabel: {
     fontSize: semanticTokens.fontSize.sm,
-    color: semanticTokens.colors.foreground.muted,
+    color: '#64748B',
     marginTop: tokens.spacing[1],
+    fontWeight: tokens.fontWeight.medium,
   },
   statDivider: {
     width: 1,
-    height: 40,
-    backgroundColor: semanticTokens.colors.border.default,
+    height: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   bottomPadding: {
     height: 100,
   },
 });
+
+export default HomeScreen;
