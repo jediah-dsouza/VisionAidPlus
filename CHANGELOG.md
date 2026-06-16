@@ -804,6 +804,14 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 
 ### Fixed
 
+#### Emergency & Safety Navigation Wiring (2026-06-16)
+
+- **Root cause**: The Emergency & Safety card in `SettingsScreen.tsx` was rendered as a plain `<View>` with no `Pressable` wrapper — tapping it was a no-op despite the card appearing interactive.
+- **Fix**: Wrapped the card in `<Pressable onPress={() => navigation.navigate('Emergency', { screen: 'EmergencyHome' })}>` — navigates to the existing root-level Emergency modal.
+- Added `useNavigation` with `NativeStackNavigationProp<RootStackParamList>` typing, `Pressable` import.
+- Accessibility: Added `accessibilityRole="button"` to the Pressable.
+- Validation: lint 0 errors, TypeScript pass, 10/10 settings tests pass.
+
 #### Global Touch System — Dev Panel Modal Auto-Open Root Cause (2026-05-22)
 
 **Root cause identified and fixed**: `DashboardDevPanel.tsx:337` — `initialVisible = true` defaulted the Dev Panel Modal to visible on mount. The Modal had `transparent={false}` and `presentationStyle="pageSheet"`, creating a full-screen opaque layer that swallowed ALL touch events across the entire app.
@@ -1042,6 +1050,47 @@ To disable: Set `DEV_AUTH_BYPASS_ENABLED = false` in DevAuthBypass.ts
 - Fixed StorageService.ts readonly array type error (getAllKeys return type)
 
 ### Changed
+
+#### UI Simplification — Home Dashboard Cleanup (2026-06-16)
+
+**HomeScreen.tsx:**
+- Removed dev-only test button (orange floating `RNButton` with click counter) and all associated state (`testButtonClicks`, `RNButton` import).
+- Removed `DashboardDevPanel` import and its `<DashboardDevPanel />` render.
+- Removed decorative gradient overlay, stat dividers, section header emoji icons, and shadows from `sectionCard`, `loadingContainer`, `deviceBadge`, `detectionPill`.
+
+**EmergencyNavigator.tsx:**
+- Replaced placeholder `CaregiverContactsScreen` and `EmergencyHistoryScreen` stubs with meaningful, accessibility-labeled status text.
+
+**AlertDetailsScreen.tsx:**
+- Replaced placeholder "Alert details view" card with real alert content rendered from Redux (title, severity badge, message, timestamp).
+
+#### UI Simplification — Settings Restructuring (2026-06-16)
+
+**Category Reduction:**
+- Removed 4 categories (`Theme`, `Biometrics`, `Privacy`, `Language`) from `SETTINGS_CATEGORIES` — default values remain in Redux/store but are no longer presented in the UI.
+- Renamed `Audio` category to `Voice Guidance` for clarity.
+
+**Component Visual Cleanup:**
+- `SettingCategory.tsx` — Made `icon` prop optional; removed decorative chevron; increased touch target to `comfortable` (56px).
+- `SettingToggle.tsx` — Increased padding and touch target size.
+- `SettingSlider.tsx` — Removed decorative thumb shadow; increased touch targets.
+- `SettingSelect.tsx` — Removed decorative chevron; increased touch targets.
+
+**Emergency & Safety Section:**
+- Restyled to match `SettingCategory` header styling (`lg` title, `minHeight: comfortable`, consistent spacing/padding).
+- Added `accessibilityLabel` for screen reader support.
+
+**Validation:**
+- lint 0 errors, TypeScript pass, 10/10 settings runtime tests pass.
+
+#### UI Simplification — System Status Card Removal (2026-06-16)
+
+- Removed the "System Status" section card from `HomeScreen.tsx` — contained only `BLEStatusWidget` and `AIStatusWidget` references without standalone content.
+- Removed now-unused imports (`BLEStatusWidget`, `AIStatusWidget` from widget barrel).
+- Removed unused destructured variables from `useHomeDashboard` (`handleDisconnectDevice`, `handleStartDetection`, `handleStopDetection`).
+- Removed unused styles (`statusWidgets`, `obstacleSection`, `quickActionsSection`, `statsSection`).
+- Quick Actions card naturally reflows upward filling the freed space; no blank gap remains.
+- Validation: TypeScript 0 errors, lint 0 errors in HomeScreen.tsx.
 
 #### AGENTS.md — Wrapper Refactor + Detail Updates (2026-05-22)
 
