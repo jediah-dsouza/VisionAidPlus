@@ -37,7 +37,7 @@ export const ForgotPasswordScreen: React.FC = () => {
     mode: 'onBlur',
   });
 
-  const onSubmit = useCallback(async (data: ForgotPasswordFormData) => {
+  const onSubmit = useCallback(async (_data: ForgotPasswordFormData) => {
     setIsSubmitting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));

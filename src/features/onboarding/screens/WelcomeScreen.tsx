@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Button } from '@shared/design-system/components';
 import { tokens, semanticTokens } from '@shared/design-system/theme';
 import { navigationGuard } from '../../../app/navigation/utils/navigationGuards';

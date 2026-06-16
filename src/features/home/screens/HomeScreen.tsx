@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   ScrollView,
   RefreshControl,
   Button as RNButton,
-  Alert as RNAlert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@app/providers/ThemeProvider';
-import { Card, Button, Loader, Alert } from '@shared/design-system/components';
+import { Loader, Alert } from '@shared/design-system/components';
 import { useHomeDashboard } from '../hooks/useHome';
 import type { RootStackParamList } from '@app/navigation/types/navigation';
 import {
@@ -22,7 +22,6 @@ import {
   QuickActionsPreset,
 } from '../dashboard/widgets';
 import { semanticTokens, tokens } from '@shared/design-system/theme';
-import type { ObstacleDetection } from '@shared/types';
 
 // DEV ONLY: Import Dashboard Dev Panel
 import { DashboardDevPanel } from '../dev/DashboardDevPanel';
@@ -36,7 +35,7 @@ const SectionHeader: React.FC<{ title: string; icon?: string }> = ({ title, icon
 
 export const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     summary,
     obstacles,
@@ -84,6 +83,11 @@ export const HomeScreen: React.FC = () => {
   const handleEmergencySettings = useCallback(() => {
     navigation.navigate('Emergency', { screen: 'EmergencyHome' });
   }, [navigation]);
+
+  const deviceStatColor = summary.deviceConnected ? '#22C55E' : '#64748B';
+  const aiActiveColor = summary.aiActive ? '#22C55E' : '#64748B';
+  const deviceColorStyle = { color: deviceStatColor };
+  const aiColorStyle = { color: aiActiveColor };
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -231,31 +235,21 @@ export const HomeScreen: React.FC = () => {
           <SectionHeader title="Today's Summary" icon="📊" />
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#60A5FA' }]}>{summary.detectionCount}</Text>
+              <Text style={[styles.statValue, styles.statValuePrimary]}>
+                {summary.detectionCount}
+              </Text>
               <Text style={styles.statLabel}>Obstacles</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text
-                style={[
-                  styles.statValue,
-                  {
-                    color: summary.deviceConnected ? '#22C55E' : '#64748B',
-                  },
-                ]}>
+              <Text style={[styles.statValue, deviceColorStyle]}>
                 {summary.deviceConnected ? '✓' : '✕'}
               </Text>
               <Text style={styles.statLabel}>Device</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text
-                style={[
-                  styles.statValue,
-                  {
-                    color: summary.aiActive ? '#22C55E' : '#64748B',
-                  },
-                ]}>
+              <Text style={[styles.statValue, aiColorStyle]}>
                 {summary.aiActive ? 'On' : 'Off'}
               </Text>
               <Text style={styles.statLabel}>AI Active</Text>
@@ -458,6 +452,9 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: tokens.fontWeight.bold,
     letterSpacing: 0.5,
+  },
+  statValuePrimary: {
+    color: '#60A5FA',
   },
   statLabel: {
     fontSize: semanticTokens.fontSize.sm,

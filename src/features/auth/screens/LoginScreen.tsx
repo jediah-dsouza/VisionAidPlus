@@ -7,19 +7,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  Image,
 } from 'react-native';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '@shared/design-system/components';
-import { Input } from '@shared/design-system/components';
 import { FormInput } from '@shared/design-system/components/FormInput/FormInput';
 import { tokens, semanticTokens } from '@shared/design-system/theme';
 import { loginSchema, type LoginFormData } from '../validators';
 import { useAuth } from '../hooks/useAuth';
-import { accessibilityEngine } from '../../../core';
 import type { AuthStackParamList } from '../../../app/navigation/types/navigation';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;

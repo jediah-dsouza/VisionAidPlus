@@ -87,8 +87,7 @@ const PermissionItem: React.FC<PermissionItemProps> = ({
 };
 
 export const PermissionsScreen: React.FC = () => {
-  const { permissions, updatePermission, allPermissionsGranted, hasDeniedPermissions } =
-    useOnboarding();
+  const { permissions, updatePermission, hasDeniedPermissions } = useOnboarding();
   const { requestPermission, requestAllPermissions, openSettings, isLoading } = usePermissions();
 
   const handleRequestPermission = useCallback(

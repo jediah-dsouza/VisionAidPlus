@@ -1,8 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { Button } from '@shared/design-system/components';
-import { Card } from '@shared/design-system/components';
-import { Loader } from '@shared/design-system/components';
 import { tokens, semanticTokens } from '@shared/design-system/theme';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { navigationGuard } from '../../../app/navigation/utils/navigationGuards';
@@ -19,22 +17,23 @@ const SignalBars: React.FC<{ strength: number }> = ({ strength }) => {
   const level = strength > -50 ? 4 : strength > -65 ? 3 : strength > -75 ? 2 : 1;
   return (
     <View style={styles.signalBars}>
-      {bars.map(bar => (
-        <View
-          key={bar}
-          style={[
-            styles.signalBar,
-            { height: 8 + bar * 4, opacity: bar <= level ? 1 : 0.25 },
-            bar <= level && { backgroundColor: '#22C55E' },
-          ]}
-        />
-      ))}
+      {bars.map(bar => {
+        const barHeight = 8 + bar * 4;
+        const barOpacity: number = bar <= level ? 1 : 0.25;
+        const barDynamicStyle = { height: barHeight, opacity: barOpacity };
+        return (
+          <View
+            key={bar}
+            style={[styles.signalBar, barDynamicStyle, bar <= level && styles.signalBarGreen]}
+          />
+        );
+      })}
     </View>
   );
 };
 
 export const DevicePairingScreen: React.FC = () => {
-  const { devicePaired, markDevicePaired } = useOnboarding();
+  const { markDevicePaired } = useOnboarding();
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
@@ -380,6 +379,9 @@ const styles = StyleSheet.create({
     width: 4,
     borderRadius: 2,
     backgroundColor: '#475569',
+  },
+  signalBarGreen: {
+    backgroundColor: '#22C55E',
   },
   signalText: {
     fontSize: semanticTokens.fontSize.xs,
