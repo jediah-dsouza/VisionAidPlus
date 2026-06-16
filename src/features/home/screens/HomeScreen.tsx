@@ -8,9 +8,11 @@ import {
   Button as RNButton,
   Alert as RNAlert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@app/providers/ThemeProvider';
 import { Card, Button, Loader, Alert } from '@shared/design-system/components';
 import { useHomeDashboard } from '../hooks/useHome';
+import type { RootStackParamList } from '@app/navigation/types/navigation';
 import {
   BLEStatusWidget,
   AIStatusWidget,
@@ -27,6 +29,7 @@ import { DashboardDevPanel } from '../dev/DashboardDevPanel';
 
 export const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const {
     summary,
     obstacles,
@@ -48,6 +51,8 @@ export const HomeScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedObstacles, setDismissedObstacles] = useState<Set<string>>(new Set());
+  // [DIAGNOSTIC] Test button hit counter (DEV only, but hook must be unconditional)
+  const [testButtonClicks, setTestButtonClicks] = useState(0);
 
   const currentObstacle = summary.lastObstacle;
   const visibleObstacles = useMemo(
@@ -71,16 +76,16 @@ export const HomeScreen: React.FC = () => {
   );
 
   const handleStartNavigation = useCallback(() => {
-    console.log('Start navigation');
-  }, []);
+    navigation.navigate('Main', { screen: 'NavigationTab' });
+  }, [navigation]);
 
   const handleViewAlerts = useCallback(() => {
-    console.log('View alerts');
-  }, []);
+    navigation.navigate('Main', { screen: 'AlertsTab', params: { screen: 'Alerts' } });
+  }, [navigation]);
 
   const handleEmergencySettings = useCallback(() => {
-    console.log('Emergency settings');
-  }, []);
+    navigation.navigate('Emergency', { screen: 'EmergencyHome' });
+  }, [navigation]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -104,9 +109,6 @@ export const HomeScreen: React.FC = () => {
       </View>
     );
   }
-
-  // [DIAGNOSTIC] Test button hit counter
-  const [testButtonClicks, setTestButtonClicks] = useState(0);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -173,29 +175,11 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.statusSection}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>System Status</Text>
 
-          <View style={styles.statusWidgets}>
-            <BLEStatusWidget
-              onConnect={handleConnectDevice}
-              onDisconnect={handleDisconnectDevice}
-              compact
-            />
-            <AIStatusWidget
-              onStartDetection={handleStartDetection}
-              onStopDetection={handleStopDetection}
-              compact
-            />
-          </View>
-
-          <View style={styles.fullWidgets}>
-            <BLEStatusWidget
-              onConnect={handleConnectDevice}
-              onDisconnect={handleDisconnectDevice}
-            />
-            <AIStatusWidget
-              onStartDetection={handleStartDetection}
-              onStopDetection={handleStopDetection}
-            />
-          </View>
+          <BLEStatusWidget onConnect={handleConnectDevice} onDisconnect={handleDisconnectDevice} />
+          <AIStatusWidget
+            onStartDetection={handleStartDetection}
+            onStopDetection={handleStopDetection}
+          />
         </View>
 
         {visibleObstacles.length > 0 && (
@@ -327,13 +311,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: semanticTokens.fontSize.lg,
     fontWeight: tokens.fontWeight.semibold,
-  },
-  statusWidgets: {
-    flexDirection: 'row',
-    gap: tokens.spacing[3],
-  },
-  fullWidgets: {
-    gap: tokens.spacing[3],
   },
   obstacleSection: {
     gap: tokens.spacing[3],

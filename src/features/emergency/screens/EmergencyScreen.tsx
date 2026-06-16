@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   Pressable,
   ScrollView,
@@ -131,10 +132,13 @@ export const EmergencyScreen: React.FC = () => {
     accessibilityEngine.announce('Emergency contact added', 'normal');
   }, [contactName, contactPhone, contactRelation, contacts.length, addContact]);
 
-  const handleRemoveContact = useCallback((id: string, name: string) => {
-    removeContact(id);
-    accessibilityEngine.announce(`${name} removed from emergency contacts`, 'high');
-  }, [removeContact]);
+  const handleRemoveContact = useCallback(
+    (id: string, name: string) => {
+      removeContact(id);
+      accessibilityEngine.announce(`${name} removed from emergency contacts`, 'high');
+    },
+    [removeContact],
+  );
 
   const rotateInterpolation = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -143,47 +147,50 @@ export const EmergencyScreen: React.FC = () => {
 
   const getStatusColor = () => {
     switch (status) {
-      case 'countdown': return semanticTokens.colors.warning.default;
+      case 'countdown':
+        return semanticTokens.colors.warning.default;
       case 'triggered':
-      case 'sending': return semanticTokens.colors.danger.default;
-      case 'resolved': return semanticTokens.colors.success.default;
-      case 'cancelled': return semanticTokens.colors.neutral.default;
-      default: return semanticTokens.colors.primary.default;
+      case 'sending':
+        return semanticTokens.colors.danger.default;
+      case 'resolved':
+        return semanticTokens.colors.success.default;
+      case 'cancelled':
+        return semanticTokens.colors.neutral.default;
+      default:
+        return semanticTokens.colors.primary.default;
     }
   };
 
   const getStatusLabel = () => {
     switch (status) {
-      case 'countdown': return `ACTIVATING IN ${countdownRemaining}s`;
-      case 'triggered': return 'EMERGENCY ACTIVE';
-      case 'sending': return 'SENDING ALERTS';
-      case 'resolved': return 'EMERGENCY RESOLVED';
-      case 'cancelled': return 'EMERGENCY CANCELLED';
-      case 'idle': return 'READY';
-      default: return '';
+      case 'countdown':
+        return `ACTIVATING IN ${countdownRemaining}s`;
+      case 'triggered':
+        return 'EMERGENCY ACTIVE';
+      case 'sending':
+        return 'SENDING ALERTS';
+      case 'resolved':
+        return 'EMERGENCY RESOLVED';
+      case 'cancelled':
+        return 'EMERGENCY CANCELLED';
+      case 'idle':
+        return 'READY';
+      default:
+        return '';
     }
   };
 
-  const countdownProgress = countdownTotal > 0
-    ? countdownRemaining / countdownTotal
-    : 0;
+  const countdownProgress = countdownTotal > 0 ? countdownRemaining / countdownTotal : 0;
 
   const renderSOSView = () => (
     <View style={styles.sosContainer}>
       <View style={styles.statusBar}>
         <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-        <Text style={[styles.statusLabel, { color: getStatusColor() }]}>
-          {getStatusLabel()}
-        </Text>
+        <Text style={[styles.statusLabel, { color: getStatusColor() }]}>{getStatusLabel()}</Text>
       </View>
 
       {(status === 'triggered' || status === 'sending') && (
-        <Animated.View
-          style={[
-            styles.radarRing,
-            { transform: [{ rotate: rotateInterpolation }] },
-          ]}
-        >
+        <Animated.View style={[styles.radarRing, { transform: [{ rotate: rotateInterpolation }] }]}>
           <Text style={styles.radarText}>SENDING</Text>
         </Animated.View>
       )}
@@ -191,7 +198,7 @@ export const EmergencyScreen: React.FC = () => {
       <Pressable
         style={({ pressed }) => [
           styles.sosButton,
-          (status === 'countdown') && styles.sosButtonCountdown,
+          status === 'countdown' && styles.sosButtonCountdown,
           (status === 'triggered' || status === 'sending') && styles.sosButtonActive,
           pressed && styles.sosButtonPressed,
         ]}
@@ -208,27 +215,24 @@ export const EmergencyScreen: React.FC = () => {
           status === 'idle'
             ? 'Triple press to activate emergency. You will have 5 seconds to cancel.'
             : undefined
-        }
-      >
+        }>
         <Animated.Text
           style={[
             styles.sosText,
-            (status === 'triggered' || status === 'sending') && { transform: [{ scale: pulseAnim }] },
-          ]}
-        >
-          {status === 'countdown' ? 'CANCEL' : status === 'triggered' || status === 'sending' ? 'ACTIVE' : 'SOS'}
+            (status === 'triggered' || status === 'sending') && {
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}>
+          {status === 'countdown'
+            ? 'CANCEL'
+            : status === 'triggered' || status === 'sending'
+              ? 'ACTIVE'
+              : 'SOS'}
         </Animated.Text>
-        {status === 'countdown' && (
-          <Text style={styles.countdownNumber}>{countdownRemaining}</Text>
-        )}
+        {status === 'countdown' && <Text style={styles.countdownNumber}>{countdownRemaining}</Text>}
         {status === 'countdown' && (
           <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                { width: `${(1 - countdownProgress) * 100}%` },
-              ]}
-            />
+            <View style={[styles.progressBar, { width: `${(1 - countdownProgress) * 100}%` }]} />
           </View>
         )}
       </Pressable>
@@ -280,8 +284,7 @@ export const EmergencyScreen: React.FC = () => {
             size="md"
             fullWidth
             onPress={escalate}
-            accessibilityLabel="Escalate emergency"
-          >
+            accessibilityLabel="Escalate emergency">
             Escalate Emergency
           </Button>
           <Button
@@ -289,8 +292,7 @@ export const EmergencyScreen: React.FC = () => {
             size="md"
             fullWidth
             onPress={resolveEmergency}
-            accessibilityLabel="Resolve emergency"
-          >
+            accessibilityLabel="Resolve emergency">
             Mark as Resolved
           </Button>
         </View>
@@ -302,8 +304,7 @@ export const EmergencyScreen: React.FC = () => {
           size="md"
           fullWidth
           onPress={handleSOSPress}
-          accessibilityLabel="Start new emergency"
-        >
+          accessibilityLabel="Start new emergency">
           Start New Emergency
         </Button>
       )}
@@ -360,8 +361,7 @@ export const EmergencyScreen: React.FC = () => {
                 style={styles.removeButton}
                 onPress={() => handleRemoveContact(contact.id, contact.name)}
                 accessibilityLabel={`Remove ${contact.name}`}
-                accessibilityRole="button"
-              >
+                accessibilityRole="button">
                 <Text style={styles.removeButtonText}>Remove</Text>
               </Pressable>
             </View>
@@ -378,68 +378,37 @@ export const EmergencyScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>Add New Contact</Text>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Name</Text>
-          <View style={styles.inputWrapper}>
-            <Pressable
-              style={styles.inputField}
-              onPress={() => {}}
-              accessibilityLabel="Contact name"
-              accessibilityRole="none"
-            >
-              <Text
-                style={[
-                  styles.inputText,
-                  !contactName && styles.inputPlaceholder,
-                ]}
-                onPress={() => {
-                  accessibilityEngine.announce('Tap name field to enter text via keyboard', 'normal');
-                }}
-              >
-                {contactName || 'Tap to enter name'}
-              </Text>
-            </Pressable>
-          </View>
+          <TextInput
+            style={[styles.inputField, styles.inputText]}
+            value={contactName}
+            onChangeText={setContactName}
+            placeholder="Enter contact name"
+            placeholderTextColor={semanticTokens.colors.foreground.disabled}
+            accessibilityLabel="Contact name"
+          />
         </View>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Phone</Text>
-          <View style={styles.inputWrapper}>
-            <Pressable
-              style={styles.inputField}
-              onPress={() => {
-                accessibilityEngine.announce('Tap phone field to enter number via keyboard', 'normal');
-              }}
-              accessibilityLabel="Contact phone number"
-            >
-              <Text
-                style={[
-                  styles.inputText,
-                  !contactPhone && styles.inputPlaceholder,
-                ]}
-              >
-                {contactPhone || 'Tap to enter phone'}
-              </Text>
-            </Pressable>
-          </View>
+          <TextInput
+            style={[styles.inputField, styles.inputText]}
+            value={contactPhone}
+            onChangeText={setContactPhone}
+            placeholder="Enter phone number"
+            placeholderTextColor={semanticTokens.colors.foreground.disabled}
+            keyboardType="phone-pad"
+            accessibilityLabel="Contact phone number"
+          />
         </View>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Relationship</Text>
-          <View style={styles.inputWrapper}>
-            <Pressable
-              style={styles.inputField}
-              onPress={() => {
-                accessibilityEngine.announce('Tap relationship field to enter via keyboard', 'normal');
-              }}
-              accessibilityLabel="Relationship to contact"
-            >
-              <Text
-                style={[
-                  styles.inputText,
-                  !contactRelation && styles.inputPlaceholder,
-                ]}
-              >
-                {contactRelation || 'Tap to enter relationship'}
-              </Text>
-            </Pressable>
-          </View>
+          <TextInput
+            style={[styles.inputField, styles.inputText]}
+            value={contactRelation}
+            onChangeText={setContactRelation}
+            placeholder="Enter relationship"
+            placeholderTextColor={semanticTokens.colors.foreground.disabled}
+            accessibilityLabel="Relationship to contact"
+          />
         </View>
         <Button
           variant="primary"
@@ -447,8 +416,7 @@ export const EmergencyScreen: React.FC = () => {
           fullWidth
           onPress={handleAddContact}
           disabled={!contactName.trim() || !contactPhone.trim()}
-          accessibilityLabel="Add emergency contact"
-        >
+          accessibilityLabel="Add emergency contact">
           Add Contact
         </Button>
       </View>
@@ -468,13 +436,9 @@ export const EmergencyScreen: React.FC = () => {
         history.map(entry => (
           <Card key={entry.id} variant="default" padding="md" style={styles.historyCard}>
             <Text style={styles.historyStatus}>{entry.status}</Text>
-            <Text style={styles.historyTime}>
-              {new Date(entry.startedAt).toLocaleString()}
-            </Text>
+            <Text style={styles.historyTime}>{new Date(entry.startedAt).toLocaleString()}</Text>
             {entry.contactsNotified > 0 && (
-              <Text style={styles.historyDetail}>
-                {entry.contactsNotified} contact(s) notified
-              </Text>
+              <Text style={styles.historyDetail}>{entry.contactsNotified} contact(s) notified</Text>
             )}
             {entry.duration > 0 && (
               <Text style={styles.historyDetail}>
@@ -490,11 +454,13 @@ export const EmergencyScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.navTabs}>
-        {([
-          { key: 'sos', label: 'SOS' },
-          { key: 'contacts', label: 'Contacts' },
-          { key: 'history', label: 'History' },
-        ] as const).map(tab => (
+        {(
+          [
+            { key: 'sos', label: 'SOS' },
+            { key: 'contacts', label: 'Contacts' },
+            { key: 'history', label: 'History' },
+          ] as const
+        ).map(tab => (
           <Pressable
             key={tab.key}
             style={[
@@ -509,14 +475,9 @@ export const EmergencyScreen: React.FC = () => {
               accessibilityEngine.announce(`${tab.label} view`, 'normal');
             }}
             accessibilityRole="tab"
-            accessibilityState={{ selected: activeView === tab.key }}
-          >
+            accessibilityState={{ selected: activeView === tab.key }}>
             <Text
-              style={[
-                styles.navTabText,
-                activeView === tab.key && { color: getStatusColor() },
-              ]}
-            >
+              style={[styles.navTabText, activeView === tab.key && { color: getStatusColor() }]}>
               {tab.label}
             </Text>
           </Pressable>
@@ -526,8 +487,7 @@ export const EmergencyScreen: React.FC = () => {
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
-        nestedScrollEnabled
-      >
+        nestedScrollEnabled>
         {activeView === 'sos' && renderSOSView()}
         {activeView === 'contacts' && renderContactsView()}
         {activeView === 'history' && renderHistoryView()}

@@ -2,12 +2,12 @@
 
 React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the visually impaired.
 
-**Current Phase**: 17 — Production Hardening (complete ✅)
-**Next**: TBD
+**All 17 phases complete** — project is production-ready (see `CHANGELOG.md`). No pending phases.
 
 **Pre-existing issues** (don't waste time investigating):
 - Redux→React rendering gap: `store.getState()` changes but widgets don't re-render (blame Redux→React layer, not middleware/EventBus)
 - `SessionSummaryGenerator.test.ts` flaky timing — `endTime` may equal `startTime` by 1ms on fast runs
+- ~294 lint warnings pre-existing (unused imports, `any` types; `lint:ci` enforces `--max-warnings=0` regardless)
 
 ---
 
@@ -66,15 +66,23 @@ React Native 0.85.3 (CLI), Android-first, dark-first accessibility app for the v
 - **Redux**: app-level slices in `src/app/store/slices/`; feature-level slices co-located in `features/*/store/`. Combined in `src/app/store/index.ts`.
 - **Dev auth bypass**: `src/features/auth/DevAuthBypass.ts` — auto-authenticates mock user and skips onboarding in `__DEV__`. Disable: `DEV_AUTH_BYPASS_ENABLED = false`.
 
-### Debugging hooks
-- `__REDUX_STORE_ID__` logged by all major consumers — catch stale store instances.
-- `globalThis.__VISIONAID_STORE__` exposed in `__DEV__` — verify same instance across modules.
+### App initialization hub (`src/app/index.tsx`)
+All core systems are initialized here: `accessibilityEngine`, `bleManager`, `emergencyManager`, `navigationManager`, `networkMonitor`, `analyticsEventBridge`/`analyticsBatchProcessor`/`analyticsEventPipeline`. The `useEffect` cleanup destroys all managers on unmount. `accessibilityEngine.initialize()` runs in ALL builds (not just `__DEV__`).
+
+### Redux store
+13 slices in `src/app/store/slices/` + `@features/auth`/`@features/onboarding` reducers, combined in `src/app/store/index.ts`. Memoized selectors in `src/app/store/selectors.ts` (20+ `createSelector` wrappers). Use `useAppSelector`/`useAppDispatch` from store/index.
+
+### Mock-only backend
+BLE, AI camera, and all device interactions are simulated via mocks (`src/core/ble/*`, `src/features/home/dev/DevSimulationEngine.ts`). No physical BLE device required for development. Performance benchmarks gated behind `(globalThis as any).__PERF__` (default false, skip in CI).
+
+### Console log prefixes for debugging
+`[DevPanel]` — DashboardDevPanel button events | `[DevSim]` — simulation engine | `[EventBus#N]` — EventBus instance operations | `[DashboardMiddleware]` — middleware handler invocations | `[BLEWidget]` — BLEStatusWidget renders | `[AccessibilityEngine]` — announcements | `[StoreDebug]` — Redux store identity checks
 
 ---
 
 ## Source of Truth Priority
 
 1. **Source code** — the code is correct; docs may be stale.
-2. **Phase tracking**: `CHANGELOG.md`
-3. **Architecture reference**: `Design.json` (design-system spec, state models, event catalog)
-4. **AI context**: `AI_CONTEXT.md` (constraints, current-phase status)
+2. **Phase tracking**: `CHANGELOG.md` (accurate, all phases documented)
+3. **Architecture reference**: `Design.json` (design-system spec, state models, event catalog — some deps/versions stale)
+4. **AI context**: `AI_CONTEXT.md` (may be stale — cross-check with source code)

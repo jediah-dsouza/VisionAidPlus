@@ -36,7 +36,8 @@ ObstacleItem.displayName = 'ObstacleItem';
 
 const LiveNavigationScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { viewState, obstacles, setEnvironment, setSensitivity } = useLiveNavigation();
+  const { viewState, obstacles, start, stop, pause, resume, setEnvironment, setSensitivity } =
+    useLiveNavigation();
 
   const renderObstacleItem = useCallback(
     ({ item }: { item: Obstacle }) => <ObstacleItem item={item} />,
@@ -71,11 +72,7 @@ const LiveNavigationScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Live Navigation</Text>
         <Text style={styles.status}>
-          {viewState.isNavigating
-            ? viewState.isPaused
-              ? 'Paused'
-              : 'Navigating'
-            : 'Ready'}
+          {viewState.isNavigating ? (viewState.isPaused ? 'Paused' : 'Navigating') : 'Ready'}
         </Text>
       </View>
 
@@ -125,10 +122,10 @@ const LiveNavigationScreen: React.FC = () => {
           canResume={viewState.canResume}
           environment={viewState.environment}
           sensitivity={viewState.sensitivity}
-          onStart={useLiveNavigation().start}
-          onStop={useLiveNavigation().stop}
-          onPause={useLiveNavigation().pause}
-          onResume={useLiveNavigation().resume}
+          onStart={start}
+          onStop={stop}
+          onPause={pause}
+          onResume={resume}
           onEnvironmentChange={handleEnvironmentChange}
           onSensitivityChange={handleSensitivityChange}
         />

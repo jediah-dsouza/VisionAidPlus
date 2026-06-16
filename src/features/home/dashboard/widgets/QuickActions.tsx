@@ -13,7 +13,6 @@ interface QuickActionsProps {
 interface QuickActionButtonProps {
   action: QuickAction;
   size: 'sm' | 'md' | 'lg';
-  onPress: (action: QuickAction) => void;
 }
 
 const getVariantStyles = (variant: QuickAction['variant'] | undefined) => {
@@ -65,7 +64,7 @@ const getSizeStyles = (size: 'sm' | 'md' | 'lg', variant?: QuickAction['variant'
   return baseStyles[size];
 };
 
-const QuickActionButton: React.FC<QuickActionButtonProps> = ({ action, size, onPress }) => {
+const QuickActionButton: React.FC<QuickActionButtonProps> = ({ action, size }) => {
   const variantStyles = getVariantStyles(action.variant);
   const sizeStyles = getSizeStyles(size, action.variant);
 
@@ -126,12 +125,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
       style={containerStyle}
       accessibilityLabel={`Quick actions: ${validActions.length} available`}>
       {validActions.map((action, index) => (
-        <QuickActionButton
-          key={action.id || index}
-          action={action}
-          size={size}
-          onPress={() => {}}
-        />
+        <QuickActionButton key={action.id || index} action={action} size={size} />
       ))}
     </View>
   );

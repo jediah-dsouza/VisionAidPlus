@@ -78,20 +78,12 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
   const handlePress = useCallback(() => {
     if (disabled || isActive) return;
 
-    dispatch(emergencyActions.startCountdown(env.EMERGENCY_COUNTDOWN_SECONDS));
     startCountdown(env.EMERGENCY_COUNTDOWN_SECONDS);
-
-    accessibilityEngine.announce(
-      `Emergency will activate in ${env.EMERGENCY_COUNTDOWN_SECONDS} seconds. Tap to cancel.`,
-      'critical',
-      true,
-    );
-    accessibilityEngine.triggerHaptic('emergency');
 
     if (onTrigger) {
       onTrigger();
     }
-  }, [disabled, isActive, dispatch, startCountdown, onTrigger]);
+  }, [disabled, isActive, startCountdown, onTrigger]);
 
   const handleCancel = useCallback(() => {
     cancelEmergency();
@@ -99,9 +91,7 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
   }, [cancelEmergency]);
 
   const fabSize = size === 'lg' ? 72 : 56;
-  const countdownProgress = countdownTotal > 0
-    ? countdownRemaining / countdownTotal
-    : 0;
+  const countdownProgress = countdownTotal > 0 ? countdownRemaining / countdownTotal : 0;
 
   const rotateInterpolation = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -114,11 +104,13 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
         style={[styles.countdownContainer, { width: fabSize + 40, height: fabSize + 40 }]}
         onPress={handleCancel}
         accessibilityRole="button"
-        accessibilityLabel={`Cancel emergency. ${countdownRemaining} seconds remaining`}
-      >
-        <View style={[styles.countdownRing, { borderColor: semanticTokens.colors.warning.default }]}>
+        accessibilityLabel={`Cancel emergency. ${countdownRemaining} seconds remaining`}>
+        <View
+          style={[styles.countdownRing, { borderColor: semanticTokens.colors.warning.default }]}>
           <Text style={styles.countdownText}>{countdownRemaining}</Text>
-          <View style={[styles.countdownProgress, { width: `${(1 - countdownProgress) * 100}%` }]} />
+          <View
+            style={[styles.countdownProgress, { width: `${(1 - countdownProgress) * 100}%` }]}
+          />
         </View>
         <Text style={styles.cancelLabel}>TAP TO CANCEL</Text>
       </Pressable>
@@ -140,22 +132,11 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
         ]}
         onPress={handleCancel}
         accessibilityRole="button"
-        accessibilityLabel={
-          `Emergency active. ${contactsNotified > 0 ? `${contactsNotified} contacts notified.` : 'Sending alerts.'} Tap to cancel.`
-        }
-      >
+        accessibilityLabel={`Emergency active. ${contactsNotified > 0 ? `${contactsNotified} contacts notified.` : 'Sending alerts.'} Tap to cancel.`}>
         <Animated.View
-          style={[
-            styles.pulseRing,
-            { transform: [{ rotate: rotateInterpolation }] },
-          ]}
+          style={[styles.pulseRing, { transform: [{ rotate: rotateInterpolation }] }]}
         />
-        <Animated.Text
-          style={[
-            styles.triggeredIcon,
-            { transform: [{ scale: pulseAnim }] },
-          ]}
-        >
+        <Animated.Text style={[styles.triggeredIcon, { transform: [{ scale: pulseAnim }] }]}>
           🚨
         </Animated.Text>
       </Pressable>
@@ -178,16 +159,16 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
           dispatch(emergencyActions.resetEmergency());
         }}
         accessibilityRole="button"
-        accessibilityLabel="Reset emergency state. Press to re-enable emergency button."
-      >
+        accessibilityLabel="Reset emergency state. Press to re-enable emergency button.">
         <Text style={{ fontSize: 20, color: semanticTokens.colors.foreground.muted }}>✓</Text>
       </Pressable>
     );
   }
 
-  const accessibilityLabel = contacts.length > 0
-    ? `Emergency button. ${contacts.length} contact${contacts.length !== 1 ? 's' : ''} configured. Press to start emergency.`
-    : 'Emergency button. No contacts configured. Press to start emergency.';
+  const accessibilityLabel =
+    contacts.length > 0
+      ? `Emergency button. ${contacts.length} contact${contacts.length !== 1 ? 's' : ''} configured. Press to start emergency.`
+      : 'Emergency button. No contacts configured. Press to start emergency.';
 
   return (
     <Pressable
@@ -204,16 +185,18 @@ export const EmergencyFAB: React.FC<EmergencyFABProps> = ({
       disabled={disabled || isActive}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityHint="Press to start emergency countdown. You can cancel within the countdown period."
-    >
+      accessibilityHint="Press to start emergency countdown. You can cancel within the countdown period.">
       <Text style={[styles.icon, { fontSize: size === 'lg' ? 28 : 22 }]}>🆘</Text>
       {contacts.filter(c => c.notifyOnEmergency).length > 0 && (
         <View style={styles.contactBadge}>
-          <Text style={styles.contactCount}>{contacts.filter(c => c.notifyOnEmergency).length}</Text>
+          <Text style={styles.contactCount}>
+            {contacts.filter(c => c.notifyOnEmergency).length}
+          </Text>
         </View>
       )}
       {contacts.filter(c => c.notifyOnEmergency).length === 0 && contacts.length > 0 && (
-        <View style={[styles.contactBadge, { backgroundColor: semanticTokens.colors.warning.default }]}>
+        <View
+          style={[styles.contactBadge, { backgroundColor: semanticTokens.colors.warning.default }]}>
           <Text style={styles.contactCount}>!</Text>
         </View>
       )}
