@@ -7,8 +7,6 @@ import { Loader, Alert } from '@shared/design-system/components';
 import { useHomeDashboard } from '../hooks/useHome';
 import type { RootStackParamList } from '@app/navigation/types/navigation';
 import {
-  BLEStatusWidget,
-  AIStatusWidget,
   ObstacleDetectionCard,
   EmergencyFAB,
   AIInstructionBanner,
@@ -31,9 +29,6 @@ export const HomeScreen: React.FC = () => {
     isLoading,
     error,
     handleConnectDevice,
-    handleDisconnectDevice,
-    handleStartDetection,
-    handleStopDetection,
   } = useHomeDashboard();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -156,20 +151,6 @@ export const HomeScreen: React.FC = () => {
         {currentObstacle && (
           <AIInstructionBanner obstacle={currentObstacle} autoDismissDelay={8000} />
         )}
-
-        <View style={styles.sectionCard}>
-          <SectionHeader title="System Status" />
-          <View style={styles.statusWidgets}>
-            <BLEStatusWidget
-              onConnect={handleConnectDevice}
-              onDisconnect={handleDisconnectDevice}
-            />
-            <AIStatusWidget
-              onStartDetection={handleStartDetection}
-              onStopDetection={handleStopDetection}
-            />
-          </View>
-        </View>
 
         {visibleObstacles.length > 0 && (
           <View style={styles.sectionCard}>
@@ -340,19 +321,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
-  statusWidgets: {
-    gap: tokens.spacing[3],
-  },
-  obstacleSection: {
-    gap: tokens.spacing[3],
-  },
   obstacleList: {
-    gap: tokens.spacing[3],
-  },
-  quickActionsSection: {
-    gap: tokens.spacing[3],
-  },
-  statsSection: {
     gap: tokens.spacing[3],
   },
   statsGrid: {
