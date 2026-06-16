@@ -39,28 +39,50 @@ export const EmergencyNavigator: React.FC = () => (
 );
 
 const CaregiverContactsScreen = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>Manage your emergency contacts</Text>
+  <View
+    style={styles.container}
+    accessibilityLabel="Emergency contacts. This feature is coming soon.">
+    <Text style={styles.title}>Emergency Contacts</Text>
+    <Text style={styles.description}>
+      Your emergency contacts will appear here. You can add trusted people who will be notified in
+      case of an emergency. This feature is coming soon.
+    </Text>
   </View>
 );
 
 const EmergencyHistoryScreen = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>View your emergency history</Text>
+  <View
+    style={styles.container}
+    accessibilityLabel="Emergency history. This feature is coming soon.">
+    <Text style={styles.title}>Emergency History</Text>
+    <Text style={styles.description}>
+      Your emergency history will appear here. Past alerts and responses will be logged for your
+      review. This feature is coming soon.
+    </Text>
   </View>
 );
 
 const styles = StyleSheet.create({
-  placeholder: {
+  container: {
     flex: 1,
     backgroundColor: semanticTokens.colors.background.default,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: tokens.spacing[4],
+    padding: tokens.spacing[8],
+    gap: tokens.spacing[4],
   },
-  placeholderText: {
-    fontSize: semanticTokens.fontSize.base,
+  title: {
+    fontSize: semanticTokens.fontSize['2xl'],
+    fontWeight: tokens.fontWeight.bold,
+    color: semanticTokens.colors.foreground.default,
+    textAlign: 'center',
+    marginBottom: tokens.spacing[2],
+  },
+  description: {
+    fontSize: semanticTokens.fontSize.lg,
     color: semanticTokens.colors.foreground.muted,
     textAlign: 'center',
+    lineHeight: 28,
+    maxWidth: 320,
   },
 });

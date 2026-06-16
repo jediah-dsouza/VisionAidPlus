@@ -1,12 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Button as RNButton,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@app/providers/ThemeProvider';
@@ -23,12 +16,8 @@ import {
 } from '../dashboard/widgets';
 import { semanticTokens, tokens } from '@shared/design-system/theme';
 
-// DEV ONLY: Import Dashboard Dev Panel
-import { DashboardDevPanel } from '../dev/DashboardDevPanel';
-
-const SectionHeader: React.FC<{ title: string; icon?: string }> = ({ title, icon }) => (
+const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
   <View style={styles.sectionHeader}>
-    {icon && <Text style={styles.sectionIcon}>{icon}</Text>}
     <Text style={styles.sectionTitle}>{title}</Text>
   </View>
 );
@@ -49,7 +38,6 @@ export const HomeScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedObstacles, setDismissedObstacles] = useState<Set<string>>(new Set());
-  const [testButtonClicks, setTestButtonClicks] = useState(0);
 
   const currentObstacle = summary.lastObstacle;
   const visibleObstacles = useMemo(
@@ -99,10 +87,6 @@ export const HomeScreen: React.FC = () => {
   if (error) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.gradientOverlay}>
-          <View style={styles.gradientTop} />
-          <View style={styles.gradientBottom} />
-        </View>
         <View style={styles.errorContent}>
           <View style={styles.errorIconContainer}>
             <Text style={styles.errorIcon}>⚠</Text>
@@ -123,22 +107,6 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.gradientOverlay}>
-        <View style={styles.gradientTop} />
-        <View style={styles.gradientBottom} />
-      </View>
-      {__DEV__ && (
-        <View style={styles.devTestButton}>
-          <RNButton
-            title={`🧪 TEST (${testButtonClicks})`}
-            color="#FFFFFF"
-            onPress={() => {
-              const newCount = testButtonClicks + 1;
-              setTestButtonClicks(newCount);
-            }}
-          />
-        </View>
-      )}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -190,7 +158,7 @@ export const HomeScreen: React.FC = () => {
         )}
 
         <View style={styles.sectionCard}>
-          <SectionHeader title="System Status" icon="⚡" />
+          <SectionHeader title="System Status" />
           <View style={styles.statusWidgets}>
             <BLEStatusWidget
               onConnect={handleConnectDevice}
@@ -205,7 +173,7 @@ export const HomeScreen: React.FC = () => {
 
         {visibleObstacles.length > 0 && (
           <View style={styles.sectionCard}>
-            <SectionHeader title="Recent Obstacles" icon="⚠" />
+            <SectionHeader title="Recent Obstacles" />
             <View style={styles.obstacleList}>
               {visibleObstacles.slice(0, 3).map((obstacle, index) => (
                 <ObstacleDetectionCard
@@ -221,7 +189,7 @@ export const HomeScreen: React.FC = () => {
         )}
 
         <View style={styles.sectionCard}>
-          <SectionHeader title="Quick Actions" icon="🚀" />
+          <SectionHeader title="Quick Actions" />
           <QuickActionsPreset
             onStartNavigation={handleStartNavigation}
             onConnectDevice={handleConnectDevice}
@@ -232,7 +200,7 @@ export const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionCard}>
-          <SectionHeader title="Today's Summary" icon="📊" />
+          <SectionHeader title="Today's Summary" />
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, styles.statValuePrimary]}>
@@ -240,14 +208,12 @@ export const HomeScreen: React.FC = () => {
               </Text>
               <Text style={styles.statLabel}>Obstacles</Text>
             </View>
-            <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={[styles.statValue, deviceColorStyle]}>
                 {summary.deviceConnected ? '✓' : '✕'}
               </Text>
               <Text style={styles.statLabel}>Device</Text>
             </View>
-            <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={[styles.statValue, aiColorStyle]}>
                 {summary.aiActive ? 'On' : 'Off'}
@@ -260,8 +226,6 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {__DEV__ && <DashboardDevPanel />}
-
       <EmergencyFAB position="bottomRight" />
     </View>
   );
@@ -271,27 +235,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradientOverlay: {
-    ...StyleSheet.absoluteFill,
-  },
-  gradientTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
-    backgroundColor: '#0F172A',
-    opacity: 0.5,
-  },
-  gradientBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    backgroundColor: '#1E293B',
-    opacity: 0.12,
-  },
   scrollView: {
     flex: 1,
   },
@@ -299,17 +242,6 @@ const styles = StyleSheet.create({
     padding: tokens.spacing[4],
     gap: tokens.spacing[5],
     paddingTop: tokens.spacing[2],
-  },
-  devTestButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    zIndex: 9999,
-    elevation: 9999,
-    backgroundColor: '#FF6600',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
   },
   header: {
     paddingTop: tokens.spacing[4],
@@ -337,13 +269,11 @@ const styles = StyleSheet.create({
   deviceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     paddingHorizontal: tokens.spacing[3],
-    paddingVertical: tokens.spacing[1.5],
+    paddingVertical: tokens.spacing[2],
     borderRadius: 20,
     gap: tokens.spacing[1.5],
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.2)',
   },
   deviceBadgeDot: {
     width: 7,
@@ -358,12 +288,10 @@ const styles = StyleSheet.create({
   },
   detectionPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
     paddingHorizontal: tokens.spacing[3],
-    paddingVertical: tokens.spacing[1.5],
+    paddingVertical: tokens.spacing[2],
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.15)',
   },
   detectionPillText: {
     fontSize: semanticTokens.fontSize.sm,
@@ -377,9 +305,7 @@ const styles = StyleSheet.create({
     gap: tokens.spacing[3],
     padding: tokens.spacing[6],
     backgroundColor: '#1A2332',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 12,
   },
   loadingText: {
     fontSize: semanticTokens.fontSize.base,
@@ -399,24 +325,14 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: '#1A2332',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: tokens.spacing[5],
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing[2],
     marginBottom: tokens.spacing[4],
-  },
-  sectionIcon: {
-    fontSize: 16,
   },
   sectionTitle: {
     fontSize: semanticTokens.fontSize.lg,
@@ -461,11 +377,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: tokens.spacing[1],
     fontWeight: tokens.fontWeight.medium,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   bottomPadding: {
     height: 100,
