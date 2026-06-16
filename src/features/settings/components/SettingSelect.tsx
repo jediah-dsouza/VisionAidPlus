@@ -59,19 +59,14 @@ export const SettingSelect: React.FC<SettingSelectProps> = ({
           disabled && styles.disabled,
         ]}>
         <View style={styles.info}>
-          <Text style={[styles.label, disabled && styles.labelDisabled]}>
-            {label}
-          </Text>
+          <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
           {description ? (
             <Text style={[styles.description, disabled && styles.descriptionDisabled]}>
               {description}
             </Text>
           ) : null}
         </View>
-        <View style={styles.valueRow}>
-          <Text style={styles.value}>{displayValue}</Text>
-          <Text style={styles.chevron}>›</Text>
-        </View>
+        <Text style={styles.value}>{displayValue}</Text>
       </Pressable>
 
       <Modal
@@ -98,16 +93,10 @@ export const SettingSelect: React.FC<SettingSelectProps> = ({
                     style={[styles.option, isSelected && styles.optionSelected]}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: isSelected }}>
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected && styles.optionTextSelected,
-                      ]}>
+                    <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                       {displayItem}
                     </Text>
-                    {isSelected ? (
-                      <Text style={styles.checkmark}>✓</Text>
-                    ) : null}
+                    {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
                   </Pressable>
                 );
               }}
@@ -129,11 +118,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: tokens.spacing[3],
+    paddingVertical: tokens.spacing[4],
     paddingHorizontal: tokens.spacing[4],
     backgroundColor: semanticTokens.colors.surface.default,
     borderRadius: semanticTokens.radius.md,
-    minHeight: semanticTokens.touchTarget.minimum,
+    minHeight: semanticTokens.touchTarget.comfortable,
   },
   pressed: {
     opacity: 0.85,
@@ -161,18 +150,9 @@ const styles = StyleSheet.create({
   descriptionDisabled: {
     color: semanticTokens.colors.foreground.subtle,
   },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   value: {
     fontSize: semanticTokens.fontSize.base,
     color: semanticTokens.colors.foreground.muted,
-    marginRight: tokens.spacing[2],
-  },
-  chevron: {
-    fontSize: 24,
-    color: semanticTokens.colors.foreground.subtle,
   },
   overlay: {
     flex: 1,

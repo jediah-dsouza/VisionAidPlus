@@ -70,15 +70,13 @@ export const SettingSlider: React.FC<SettingSliderProps> = ({
         { name: 'increment', label: 'Increase' },
         { name: 'decrement', label: 'Decrease' },
       ]}
-      onAccessibilityAction={(event) => {
+      onAccessibilityAction={event => {
         if (event.nativeEvent.actionName === 'increment') increment();
         if (event.nativeEvent.actionName === 'decrement') decrement();
       }}>
       <View style={styles.header}>
         <View style={styles.info}>
-          <Text style={[styles.label, disabled && styles.labelDisabled]}>
-            {label}
-          </Text>
+          <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
           {description ? (
             <Text style={[styles.description, disabled && styles.descriptionDisabled]}>
               {description}
@@ -120,7 +118,7 @@ export const SettingSlider: React.FC<SettingSliderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: tokens.spacing[3],
+    paddingVertical: tokens.spacing[4],
     paddingHorizontal: tokens.spacing[4],
     backgroundColor: semanticTokens.colors.surface.default,
     borderRadius: semanticTokens.radius.md,
@@ -203,10 +201,5 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
   },
 });

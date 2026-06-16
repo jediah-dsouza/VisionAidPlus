@@ -31,10 +31,7 @@ export const SettingToggle: React.FC<SettingToggleProps> = ({
       const now = Date.now();
       if (now - lastAnnounce.current > 1000) {
         lastAnnounce.current = now;
-        accessibilityEngine.announce(
-          `${label} ${newValue ? 'enabled' : 'disabled'}`,
-          'low',
-        );
+        accessibilityEngine.announce(`${label} ${newValue ? 'enabled' : 'disabled'}`, 'low');
       }
     },
     [label, onValueChange],
@@ -54,9 +51,7 @@ export const SettingToggle: React.FC<SettingToggleProps> = ({
         disabled && styles.disabled,
       ]}>
       <View style={styles.info}>
-        <Text style={[styles.label, disabled && styles.labelDisabled]}>
-          {label}
-        </Text>
+        <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
         {description ? (
           <Text style={[styles.description, disabled && styles.descriptionDisabled]}>
             {description}
@@ -83,11 +78,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: tokens.spacing[3],
+    paddingVertical: tokens.spacing[4],
     paddingHorizontal: tokens.spacing[4],
     backgroundColor: semanticTokens.colors.surface.default,
     borderRadius: semanticTokens.radius.md,
-    minHeight: semanticTokens.touchTarget.minimum,
+    minHeight: semanticTokens.touchTarget.comfortable,
   },
   pressed: {
     opacity: 0.85,

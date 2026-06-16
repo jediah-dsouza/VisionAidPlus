@@ -24,10 +24,15 @@ export const SettingsScreen: React.FC = () => {
 
   const renderField = useCallback(
     (field: SettingFieldDefinition) => {
-      const currentValue = (preferences[field.category] as unknown as Record<string, unknown>)[field.key];
+      const currentValue = (preferences[field.category] as unknown as Record<string, unknown>)[
+        field.key
+      ];
 
       if (field.dependsOn) {
-        const parentValue = preferences[field.dependsOn.category][field.dependsOn.key as keyof UserPreferences[typeof field.dependsOn.category]];
+        const parentValue =
+          preferences[field.dependsOn.category][
+            field.dependsOn.key as keyof UserPreferences[typeof field.dependsOn.category]
+          ];
         if (parentValue !== field.dependsOn.value) {
           return null;
         }
@@ -41,7 +46,7 @@ export const SettingsScreen: React.FC = () => {
               label={field.label}
               description={field.description}
               value={currentValue as boolean}
-              onValueChange={(v) => handleChange(field.category, field.key, v)}
+              onValueChange={v => handleChange(field.category, field.key, v)}
             />
           );
 
@@ -55,7 +60,7 @@ export const SettingsScreen: React.FC = () => {
               min={field.min ?? 0}
               max={field.max ?? 100}
               step={field.step ?? 1}
-              onValueChange={(v) => handleChange(field.category, field.key, v)}
+              onValueChange={v => handleChange(field.category, field.key, v)}
             />
           );
 
@@ -67,7 +72,7 @@ export const SettingsScreen: React.FC = () => {
               description={field.description}
               value={currentValue as string}
               options={field.options ?? []}
-              onValueChange={(v) => handleChange(field.category, field.key, v)}
+              onValueChange={v => handleChange(field.category, field.key, v)}
             />
           );
 
@@ -81,9 +86,7 @@ export const SettingsScreen: React.FC = () => {
   if (!loaded) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
-          Loading settings...
-        </Text>
+        <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Loading settings...</Text>
       </View>
     );
   }
@@ -97,17 +100,23 @@ export const SettingsScreen: React.FC = () => {
         <Text style={[styles.title, { color: colors.textPrimary }]}>Settings</Text>
       </View>
 
-      {SETTINGS_CATEGORIES.map((category) => (
+      {SETTINGS_CATEGORIES.map(category => (
         <SettingCategory
           key={category.id}
-          icon={category.icon}
           title={category.title}
           description={category.description}>
           {category.fields.map(renderField)}
         </SettingCategory>
       ))}
 
-      <View style={styles.dangerZone}>
+      <View style={styles.safetyInfo}>
+        <Text style={styles.safetyTitle}>Emergency & Safety</Text>
+        <Text style={styles.safetyDescription}>
+          Emergency contacts and safety preferences are managed in the Emergency screen.
+        </Text>
+      </View>
+
+      <View style={styles.resetContainer}>
         <Button variant="danger" size="md" onPress={() => setShowResetConfirm(true)}>
           Reset to Defaults
         </Button>
@@ -148,10 +157,11 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: tokens.spacing[4],
-    paddingBottom: tokens.spacing[10],
+    paddingBottom: tokens.spacing[12],
+    gap: tokens.spacing[2],
   },
   header: {
-    marginBottom: tokens.spacing[4],
+    marginBottom: tokens.spacing[6],
   },
   title: {
     fontSize: semanticTokens.fontSize['3xl'],
@@ -160,11 +170,24 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: semanticTokens.fontSize.lg,
   },
-  dangerZone: {
-    marginTop: tokens.spacing[6],
-    paddingTop: tokens.spacing[4],
-    borderTopWidth: 1,
-    borderTopColor: semanticTokens.colors.border.muted,
+  safetyInfo: {
+    padding: tokens.spacing[4],
+    backgroundColor: semanticTokens.colors.surface.default,
+    borderRadius: semanticTokens.radius.md,
+  },
+  safetyTitle: {
+    fontSize: semanticTokens.fontSize.base,
+    fontWeight: tokens.fontWeight.semibold,
+    color: semanticTokens.colors.foreground.default,
+    marginBottom: tokens.spacing[1],
+  },
+  safetyDescription: {
+    fontSize: semanticTokens.fontSize.sm,
+    color: semanticTokens.colors.foreground.muted,
+    lineHeight: 20,
+  },
+  resetContainer: {
+    marginTop: tokens.spacing[4],
   },
   modalActions: {
     flexDirection: 'row',
