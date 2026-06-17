@@ -24,7 +24,7 @@ jest.mock('../../src/core/native/TTSService', () => ({
 }));
 
 jest.mock('../../src/core/accessibility', () => ({
-  accessibilityEngine: { announce: jest.fn(), triggerHaptic: jest.fn() },
+  accessibilityEngine: { announce: jest.fn().mockResolvedValue(undefined), triggerHaptic: jest.fn() },
 }));
 
 function makeMsg(overrides: Partial<SpeechMessage> = {}): SpeechMessage {

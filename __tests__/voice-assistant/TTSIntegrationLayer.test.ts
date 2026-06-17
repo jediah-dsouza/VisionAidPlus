@@ -18,7 +18,7 @@ jest.mock('../../src/core/native/TTSService', () => ({
 }));
 
 jest.mock('../../src/core/accessibility', () => ({
-  accessibilityEngine: { announce: jest.fn() },
+  accessibilityEngine: { announce: jest.fn().mockResolvedValue(undefined) },
 }));
 
 function makeItem(overrides: Partial<SpeechQueueItem> = {}): SpeechQueueItem {

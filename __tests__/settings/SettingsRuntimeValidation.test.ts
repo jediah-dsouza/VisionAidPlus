@@ -39,7 +39,7 @@ jest.mock('../../src/core/events/EventBus', () => {
 });
 
 jest.mock('../../src/core/accessibility/AccessibilityEngine', () => ({
-  accessibilityEngine: { updateConfig: jest.fn(), announce: jest.fn() },
+  accessibilityEngine: { updateConfig: jest.fn(), announce: jest.fn().mockResolvedValue(undefined) },
 }));
 
 jest.mock('../../src/core/accessibility/HapticCoordinator', () => ({

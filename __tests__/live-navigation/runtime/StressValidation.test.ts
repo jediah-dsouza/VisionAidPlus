@@ -18,7 +18,7 @@ jest.mock('../../../src/core/debug', () => ({
 
 jest.mock('../../../src/core/accessibility', () => ({
   accessibilityEngine: {
-    announce: jest.fn(),
+    announce: jest.fn().mockResolvedValue(undefined),
     triggerHaptic: jest.fn(),
     initialize: jest.fn(),
     announceNavigationChange: jest.fn(),

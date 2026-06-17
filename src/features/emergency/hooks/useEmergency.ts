@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from '@app/store';
 import { emergencyActions } from '@app/store/slices/emergencySlice';
 import { eventBus, EVENTS } from '@core/events/EventBus';
 import { accessibilityEngine } from '@core/accessibility';
+import { logger } from '@core/debug';
 import {
   emergencyManager,
   emergencyStateMachine,
@@ -143,7 +144,7 @@ export const useEmergency = () => {
     newContact.then(c => {
       dispatch(emergencyActions.addContact(c));
     }).catch(err => {
-      console.error('[useEmergency] Failed to add contact', err);
+      logger.error('[useEmergency] Failed to add contact', err);
     });
   }, [dispatch]);
 
@@ -151,7 +152,7 @@ export const useEmergency = () => {
     emergencyContactManager.updateContact(id, updates).then(c => {
       dispatch(emergencyActions.updateContact(c));
     }).catch(err => {
-      console.error('[useEmergency] Failed to update contact', err);
+      logger.error('[useEmergency] Failed to update contact', err);
     });
   }, [dispatch]);
 
@@ -159,7 +160,7 @@ export const useEmergency = () => {
     emergencyContactManager.removeContact(id).then(() => {
       dispatch(emergencyActions.removeContact(id));
     }).catch(err => {
-      console.error('[useEmergency] Failed to remove contact', err);
+      logger.error('[useEmergency] Failed to remove contact', err);
     });
   }, [dispatch]);
 

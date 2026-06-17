@@ -262,6 +262,16 @@ export const EmergencyScreen: React.FC = () => {
               </Text>
             </View>
           )}
+          {escalationAttempts > 0 && (
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: semanticTokens.colors.warning.default }]}>
+                Escalations
+              </Text>
+              <Text style={[styles.infoValue, { color: semanticTokens.colors.warning.default }]}>
+                {escalationAttempts}
+              </Text>
+            </View>
+          )}
           {smsSent > 0 && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>SMS Sent</Text>

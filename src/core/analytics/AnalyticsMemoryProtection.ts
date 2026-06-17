@@ -55,7 +55,7 @@ export class AnalyticsMemoryProtection {
         try {
           this.onPrune(name, overage);
         } catch (error) {
-          console.error('[AnalyticsMemory] Prune handler error:', error);
+          if (__DEV__) console.error('[AnalyticsMemory] Prune handler error:', error);
         }
       }
     }
@@ -110,7 +110,7 @@ export class AnalyticsMemoryProtection {
         try {
           this.onPrune(name, entry.usage - entry.budget);
         } catch (error) {
-          console.error('[AnalyticsMemory] Prune handler error:', error);
+          if (__DEV__) console.error('[AnalyticsMemory] Prune handler error:', error);
         }
       }
     });

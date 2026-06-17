@@ -73,7 +73,7 @@ export class AnalyticsPersistenceCoordinator {
         this.storage.set(key, serialized);
         console.log(`[AnalyticsPersistence] Saved snapshot: ${key} (${serialized.length} bytes)`);
       } catch (error) {
-        console.error(`[AnalyticsPersistence] Failed to serialize snapshot for key: ${key}`, error);
+        if (__DEV__) console.error(`[AnalyticsPersistence] Failed to serialize snapshot for key: ${key}`, error);
       }
     }
 

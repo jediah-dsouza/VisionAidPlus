@@ -15,12 +15,20 @@ const currentLogLevel = LOG_LEVELS[env.LOG_LEVEL] ?? LOG_LEVELS.info;
 export const logger = {
   error: (message: string, ...args: unknown[]) => {
     if (currentLogLevel >= LOG_LEVELS.error) {
-      console.error(`[ERROR] ${message}`, ...args);
+      if (__DEV__) {
+        console.error(`[ERROR] ${message}`, ...args);
+      } else {
+        console.log(`[ERROR] ${message}`, ...args);
+      }
     }
   },
   warn: (message: string, ...args: unknown[]) => {
     if (currentLogLevel >= LOG_LEVELS.warn) {
-      console.warn(`[WARN] ${message}`, ...args);
+      if (__DEV__) {
+        console.warn(`[WARN] ${message}`, ...args);
+      } else {
+        console.log(`[WARN] ${message}`, ...args);
+      }
     }
   },
   info: (message: string, ...args: unknown[]) => {

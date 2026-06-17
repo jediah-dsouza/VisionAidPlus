@@ -48,7 +48,7 @@ export class AnalyticsSynchronizationLayer {
       try {
         this.onSyncReady(merged);
       } catch (error) {
-        console.error('[AnalyticsSyncLayer] onSyncReady callback error:', error);
+        if (__DEV__) console.error('[AnalyticsSyncLayer] onSyncReady callback error:', error);
       }
     }
   }

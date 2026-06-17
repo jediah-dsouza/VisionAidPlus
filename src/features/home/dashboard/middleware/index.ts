@@ -226,7 +226,7 @@ class DashboardEventMiddleware {
       {
         event: EVENTS.EMERGENCY_TRIGGERED,
         handler: () => {
-          store.dispatch(emergencyActions.triggerEmergency(undefined));
+          store.dispatch(emergencyActions.triggerEmergency({}));
           store.dispatch(emergencyActions.setSending());
         },
         priority: 'critical',

@@ -34,7 +34,7 @@ export abstract class AnalyticsAggregationEngine {
       this.eventCount++;
       this.lastProcessedAt = Date.now();
     } catch (error) {
-      console.error(`[AnalyticsAggEngine] ${this.engineName} process error:`, error);
+      if (__DEV__) console.error(`[AnalyticsAggEngine] ${this.engineName} process error:`, error);
     }
     this.processingTimeMs += performance.now() - start;
   }

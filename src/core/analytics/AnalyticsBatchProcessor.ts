@@ -78,7 +78,7 @@ export class AnalyticsBatchProcessor {
       try {
         this.onBatchReady(batch);
       } catch (error) {
-        console.error('[AnalyticsBatchProcessor] onBatchReady error:', error);
+        if (__DEV__) console.error('[AnalyticsBatchProcessor] onBatchReady error:', error);
       }
     }
 

@@ -442,7 +442,7 @@ class DevSimulationEngine {
   }
 
   simulateEmergencyEscalation(): void {
-    store.dispatch(emergencyActions.triggerEmergency(undefined));
+    store.dispatch(emergencyActions.triggerEmergency({}));
     store.dispatch(emergencyActions.setSending());
     store.dispatch(emergencyActions.setEscalationAttempts(1));
 

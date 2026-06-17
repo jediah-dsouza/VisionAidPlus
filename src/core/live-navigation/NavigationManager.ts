@@ -76,7 +76,7 @@ export class NavigationManager {
             `Navigation danger: ${to} level`,
             'critical',
             true,
-          );
+          ).catch(() => {});
         }
       },
       'critical',
@@ -99,7 +99,7 @@ export class NavigationManager {
           instruction.text,
           instruction.priority,
           instruction.priority === 'critical',
-        );
+        ).catch(() => {});
       },
       'high',
     );
@@ -150,7 +150,7 @@ export class NavigationManager {
     this.paused = false;
 
     eventBus.publish(NAVIGATION_EVENTS.NAVIGATION_STOPPED, { sessionId: session.id }, 'high');
-    accessibilityEngine.announce('Navigation stopped', 'high', true);
+    accessibilityEngine.announce('Navigation stopped', 'high', true).catch(() => {});
     logger.info('[NavigationManager] Navigation stopped');
   }
 
@@ -164,7 +164,7 @@ export class NavigationManager {
     this.stopRadarLoop();
 
     eventBus.publish(NAVIGATION_EVENTS.NAVIGATION_PAUSED, { sessionId: this.session.id }, 'normal');
-    accessibilityEngine.announce('Navigation paused', 'normal', false);
+    accessibilityEngine.announce('Navigation paused', 'normal', false).catch(() => {});
     logger.info('[NavigationManager] Paused');
     return true;
   }
@@ -183,7 +183,7 @@ export class NavigationManager {
     this.startRadarLoop();
 
     eventBus.publish(NAVIGATION_EVENTS.NAVIGATION_RESUMED, { sessionId: this.session.id }, 'normal');
-    accessibilityEngine.announce('Navigation resumed', 'normal', false);
+    accessibilityEngine.announce('Navigation resumed', 'normal', false).catch(() => {});
     logger.info('[NavigationManager] Resumed');
     return true;
   }
@@ -278,7 +278,7 @@ export class NavigationManager {
       case 'night': announcement = 'Night navigation mode'; break;
       case 'tunnel': announcement = 'Tunnel navigation mode'; break;
     }
-    accessibilityEngine.announce(announcement, 'high', false);
+    accessibilityEngine.announce(announcement, 'high', false).catch(() => {});
     logger.info(`[NavigationManager] Environment: ${prev} → ${mode}`);
   }
 

@@ -7,7 +7,7 @@ jest.mock('../../../src/core/accessibility', () => ({
   accessibilityEngine: {
     enterEmergencyMode: jest.fn(),
     exitEmergencyMode: jest.fn(),
-    announce: jest.fn(),
+    announce: jest.fn().mockResolvedValue(undefined),
     triggerHaptic: jest.fn(),
   },
 }));

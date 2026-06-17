@@ -108,7 +108,7 @@ describe('emergencySlice', () => {
     state = reducer(state, emergencyActions.saveSessionToHistory());
 
     expect(state.history).toHaveLength(1);
-    expect(state.history[0].id).toBe('session-1');
+    expect(state.history[0].id).toEqual(expect.stringMatching(/^session-1_\d+$/));
     expect(state.history[0].contactsNotified).toBe(3);
     expect(state.history[0].smsSent).toBe(3);
   });

@@ -46,7 +46,7 @@ export class AnalyticsRenderingOptimizer {
         try {
           this.onMetricsReady(this.pendingMetrics);
         } catch (error) {
-          console.error('[AnalyticsRenderOpt] onMetricsReady callback error:', error);
+          if (__DEV__) console.error('[AnalyticsRenderOpt] onMetricsReady callback error:', error);
         }
       }
     }

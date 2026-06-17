@@ -109,7 +109,10 @@ export const emergencySlice = createSlice({
       state.escalationAttempts = action.payload;
       state.lastUpdatedAt = new Date().toISOString();
     },
-    setGpsCoordinates: (state, action: PayloadAction<{ latitude: number; longitude: number } | null>) => {
+    setGpsCoordinates: (
+      state,
+      action: PayloadAction<{ latitude: number; longitude: number } | null>,
+    ) => {
       state.gpsCoordinates = action.payload;
       state.lastUpdatedAt = new Date().toISOString();
     },
@@ -127,7 +130,7 @@ export const emergencySlice = createSlice({
     saveSessionToHistory: state => {
       if (state.sessionId && state.triggeredAt) {
         const entry: EmergencyHistoryEntry = {
-          id: state.sessionId,
+          id: `${state.sessionId}_${Date.now()}`,
           status: state.status,
           startedAt: new Date(state.triggeredAt).getTime(),
           triggeredAt: new Date(state.triggeredAt).getTime(),

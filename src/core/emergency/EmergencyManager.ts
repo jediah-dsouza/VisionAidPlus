@@ -154,7 +154,7 @@ export class EmergencyManager {
     );
     accessibilityEngine.triggerHaptic('emergency');
 
-    this.executeEmergencyProtocol();
+    this.executeEmergencyProtocol().catch(() => {});
   }
 
   private async executeEmergencyProtocol(): Promise<void> {
@@ -271,7 +271,7 @@ export class EmergencyManager {
     this.escalationTimer = setTimeout(() => {
       this.escalationTimer = null;
       if (!this.destroyed && this.currentSession?.status === 'escalating') {
-        this.executeEmergencyProtocol();
+        this.executeEmergencyProtocol().catch(() => {});
       }
     }, Math.min(backoff, 120000));
 

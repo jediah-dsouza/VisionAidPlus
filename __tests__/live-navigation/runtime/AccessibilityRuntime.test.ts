@@ -35,7 +35,7 @@ jest.mock('../../../src/core/debug', () => ({
 
 jest.mock('../../../src/core/accessibility', () => ({
   accessibilityEngine: {
-    announce: jest.fn((...args: unknown[]) => {}),
+    announce: jest.fn().mockResolvedValue(undefined),
     triggerHaptic: jest.fn((...args: unknown[]) => {}),
     initialize: jest.fn(),
     announceNavigationChange: jest.fn(),
@@ -59,7 +59,7 @@ function makeEvent(overrides: Partial<ObstacleEvent> = {}): ObstacleEvent {
   };
 }
 
-const mockAnnounce = jest.fn();
+const mockAnnounce = jest.fn().mockResolvedValue(undefined);
 const mockTriggerHaptic = jest.fn();
 
 describe('Accessibility Runtime Validation', () => {
