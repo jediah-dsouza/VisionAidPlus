@@ -6,7 +6,7 @@ A production-grade accessibility-focused mobile platform designed to assist visu
 
 ## Overview
 
-VisionAid+ is a React Native mobile application built using a modular, scalable, and production-oriented architecture.
+VisionAid is a React Native mobile application built using a modular, scalable, and production-oriented architecture.
 
 The platform combines:
 
