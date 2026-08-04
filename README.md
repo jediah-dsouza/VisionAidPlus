@@ -1,4 +1,4 @@
-# VisionAid+ 🚀
+# VisionAid 🚀
 
 A production-grade accessibility-focused mobile platform designed to assist visually impaired users through real-time navigation, obstacle awareness, emergency assistance, voice interaction, analytics, and AI-ready camera integration.
 
